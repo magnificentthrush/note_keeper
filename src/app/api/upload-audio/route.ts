@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
         success: true,
         path: fileName,
         url: publicUrl,
-        signedUrl: signedUrlData?.signedUrl || null,
+        signedUrl: null,
       });
     }
 
