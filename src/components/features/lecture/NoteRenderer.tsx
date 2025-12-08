@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 interface NoteRendererProps {
   content: string;
 }
@@ -8,7 +10,7 @@ export default function NoteRenderer({ content }: NoteRendererProps) {
   // Simple markdown parser
   const parseMarkdown = (text: string) => {
     const lines = text.split('\n');
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactElement[] = [];
     let listItems: string[] = [];
     let inList = false;
     let listType: 'ul' | 'ol' = 'ul';
