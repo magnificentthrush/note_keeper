@@ -1,23 +1,17 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Clock, Pin, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import BottomNav from '@/components/BottomNav';
-import NoteRenderer from '@/components/NoteRenderer';
+import { Clock, Pin, Loader2, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import Sidebar from '@/components/layout/Sidebar';
+import Header from '@/components/layout/Header';
+import NoteRenderer from '@/components/features/lecture/NoteRenderer';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 import { Lecture, Keypoint } from '@/lib/types';
 import RefreshButton from './RefreshButton';
 
 export const dynamic = 'force-dynamic';
-
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -25,9 +19,17 @@ function formatDate(dateString: string): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
   });
+}
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+interface PageProps {
+  params: Promise<{ id: string }>;
 }
 
 export default async function LecturePage({ params }: PageProps) {
@@ -35,9 +37,7 @@ export default async function LecturePage({ params }: PageProps) {
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect('/auth');
-  }
+  if (!user) redirect('/auth');
 
   const { data: lecture, error } = await supabase
     .from('lectures')
@@ -46,133 +46,131 @@ export default async function LecturePage({ params }: PageProps) {
     .eq('user_id', user.id)
     .single();
 
-  if (error || !lecture) {
-    notFound();
-  }
+  if (error || !lecture) notFound();
 
   const typedLecture = lecture as Lecture;
   const keypoints = typedLecture.user_keypoints || [];
 
+  const needsRetry = typedLecture.final_notes && (
+    typedLecture.final_notes.includes('quota') ||
+    typedLecture.final_notes.includes('Transcript Available') ||
+    typedLecture.final_notes.includes('Error')
+  );
+
   return (
-    <div className="min-h-screen bg-zinc-950 pb-safe">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800">
-        <div className="px-4 py-4 flex items-center gap-4 max-w-3xl mx-auto">
-          <Link
-            href="/dashboard"
-            className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors flex-shrink-0"
-          >
-            <ArrowLeft className="w-5 h-5 text-zinc-400" />
-          </Link>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold text-white truncate">
-              {typedLecture.title || 'Untitled Lecture'}
-            </h1>
-            <p className="text-sm text-zinc-500 truncate">
-              {formatDate(typedLecture.created_at)}
-            </p>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <Sidebar />
 
-      {/* Content */}
-      <main className="px-4 py-6 max-w-3xl mx-auto">
-        {/* Processing state */}
-        {typedLecture.status === 'processing' && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 rounded-full bg-violet-500/20 flex items-center justify-center mb-6">
-              <Loader2 className="w-10 h-10 text-violet-400 animate-spin" />
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
-              Processing your lecture
-            </h2>
-            <p className="text-zinc-400 mb-6 max-w-sm">
-              We&apos;re transcribing your audio and generating detailed study notes. This usually takes a few minutes.
-            </p>
-            <RefreshButton lectureId={id} />
-          </div>
-        )}
+      <main className="pl-64">
+        <Header
+          backHref="/dashboard"
+          title={typedLecture.title || 'Untitled Lecture'}
+          subtitle={formatDate(typedLecture.created_at)}
+          actions={
+            typedLecture.status === 'completed' && (
+              <Badge
+                icon={FileText}
+                text="Notes Ready"
+                variant="success"
+              />
+            )
+          }
+        />
 
-        {/* Error state */}
-        {typedLecture.status === 'error' && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
-              <AlertCircle className="w-10 h-10 text-red-400" />
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
-              Processing failed
-            </h2>
-            <p className="text-zinc-400 mb-6 max-w-sm">
-              There was an error processing your lecture. This might be due to audio quality or a temporary issue.
-            </p>
-            <Link
-              href="/record"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-xl transition-all"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Try Again
-            </Link>
-          </div>
-        )}
-
-        {/* Completed - show notes */}
-        {typedLecture.status === 'completed' && typedLecture.final_notes && (
-          <>
-            {/* Show retry button if notes contain error message */}
-            {typedLecture.final_notes.includes('quota') || 
-             typedLecture.final_notes.includes('Transcript Available') ||
-             typedLecture.final_notes.includes('Error') ? (
-              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                <p className="text-amber-400 text-sm mb-3">
-                  AI notes generation failed. Click below to retry.
-                </p>
-                <RefreshButton lectureId={id} canRetry={true} />
+        <div className="p-8 max-w-4xl mx-auto">
+          {/* Processing */}
+          {typedLecture.status === 'processing' && (
+            <Card className="p-12 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mx-auto mb-6">
+                <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin" />
               </div>
-            ) : null}
-            
-            {/* Key points summary */}
-            {keypoints.length > 0 && (
-              <div className="mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
-                <h3 className="text-sm font-medium text-zinc-400 mb-3 flex items-center gap-2">
-                  <Pin className="w-4 h-4 text-violet-400" />
-                  Your Key Points ({keypoints.length})
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {keypoints.map((kp: Keypoint, index: number) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-500/10 border border-violet-500/20 rounded-lg text-sm"
-                    >
-                      <Clock className="w-3.5 h-3.5 text-violet-400" />
-                      <span className="text-violet-300 font-mono text-xs">
-                        {formatTime(kp.timestamp)}
+              <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                Processing your lecture
+              </h2>
+              <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
+                We&apos;re transcribing your audio and generating detailed study notes. This usually takes a few minutes.
+              </p>
+              <RefreshButton lectureId={id} />
+            </Card>
+          )}
+
+          {/* Error */}
+          {typedLecture.status === 'error' && (
+            <Card className="p-12 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--error)]/10 flex items-center justify-center mx-auto mb-6">
+                <AlertCircle className="w-8 h-8 text-[var(--error)]" />
+              </div>
+              <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                Processing failed
+              </h2>
+              <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
+                There was an error processing your lecture. This might be due to audio quality or a temporary issue.
+              </p>
+              <Link href="/record">
+                <Button>
+                  <RefreshCw className="w-4 h-4" />
+                  Try Again
+                </Button>
+              </Link>
+            </Card>
+          )}
+
+          {/* Completed */}
+          {typedLecture.status === 'completed' && typedLecture.final_notes && (
+            <div className="space-y-6">
+              {/* Retry notice */}
+              {needsRetry && (
+                <Card className="p-4 border-[var(--warning)]/30 bg-[var(--warning)]/5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-[var(--warning)]">
+                      AI notes generation incomplete. Click to retry.
+                    </p>
+                    <RefreshButton lectureId={id} canRetry={true} />
+                  </div>
+                </Card>
+              )}
+
+              {/* Keypoints */}
+              {keypoints.length > 0 && (
+                <Card className="p-5">
+                  <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4 flex items-center gap-2">
+                    <Pin className="w-4 h-4 text-[var(--accent)]" />
+                    Your Key Points ({keypoints.length})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {keypoints.map((kp: Keypoint, index: number) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg text-sm"
+                      >
+                        <Clock className="w-3.5 h-3.5 text-[var(--accent)]" />
+                        <span className="text-[var(--accent-light)] font-mono text-xs">
+                          {formatTime(kp.timestamp)}
+                        </span>
+                        <span className="text-[var(--text-secondary)]">{kp.note}</span>
                       </span>
-                      <span className="text-zinc-300">{kp.note}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+                    ))}
+                  </div>
+                </Card>
+              )}
 
-            {/* Notes content */}
-            <div className="bg-zinc-900/30 border border-zinc-800 rounded-2xl p-6">
-              <NoteRenderer content={typedLecture.final_notes} />
+              {/* Notes */}
+              <Card className="p-8">
+                <NoteRenderer content={typedLecture.final_notes} />
+              </Card>
             </div>
-          </>
-        )}
+          )}
 
-        {/* Recording state - shouldn't normally be seen here */}
-        {typedLecture.status === 'recording' && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-zinc-400">
-              This lecture is still being recorded.
-            </p>
-          </div>
-        )}
+          {/* Recording */}
+          {typedLecture.status === 'recording' && (
+            <Card className="p-12 text-center">
+              <p className="text-[var(--text-muted)]">
+                This lecture is still being recorded.
+              </p>
+            </Card>
+          )}
+        </div>
       </main>
-
-      <BottomNav />
     </div>
   );
 }
-

@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, BookOpen } from 'lucide-react';
-import BottomNav from '@/components/BottomNav';
-import LectureCard from '@/components/LectureCard';
+import { Plus, FileText } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import LectureCard from '@/components/features/lecture/LectureCard';
 import { Lecture } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,86 +16,67 @@ export default async function DashboardPage() {
     redirect('/auth');
   }
 
-  const { data: lectures, error } = await supabase
+  const { data: lectures } = await supabase
     .from('lectures')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching lectures:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
-      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
-    });
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-950 pb-safe">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800">
-        <div className="px-4 py-4 flex items-center justify-between max-w-2xl mx-auto">
+      <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">My Lectures</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1">
               {lectures?.length || 0} lecture{lectures?.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <Link
-            href="/record"
-            className="w-10 h-10 rounded-full bg-violet-600 hover:bg-violet-500 flex items-center justify-center shadow-lg shadow-violet-500/25 transition-all active:scale-95 md:hidden"
-          >
-            <Plus className="w-5 h-5 text-white" />
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/profile">
+              <Button variant="ghost" size="sm">
+                Profile
+              </Button>
+            </Link>
+            <Link href="/record">
+              <Button>
+                <Plus className="w-4 h-4" />
+                New Recording
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* Content */}
-      <main className="px-4 py-6 max-w-2xl mx-auto">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-8 py-8">
         {lectures && lectures.length > 0 ? (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {lectures.map((lecture: Lecture) => (
               <LectureCard key={lecture.id} lecture={lecture} />
             ))}
           </div>
         ) : (
-          /* Empty state */
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-            <div className="w-20 h-20 rounded-3xl bg-zinc-800/50 flex items-center justify-center mb-6">
-              <BookOpen className="w-10 h-10 text-zinc-600" />
+          <div className="flex flex-col items-center justify-center py-32 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-center mb-6">
+              <FileText className="w-10 h-10 text-[var(--text-muted)]" />
             </div>
-            <h2 className="text-xl font-semibold text-white mb-2">
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-3">
               No lectures yet
             </h2>
-            <p className="text-zinc-500 mb-6 max-w-xs">
-              Start recording your first lecture and let AI generate detailed study notes for you.
+            <p className="text-[var(--text-secondary)] mb-8 max-w-md">
+              Start recording your first lecture and let AI generate detailed study notes automatically.
             </p>
-            <Link
-              href="/record"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-xl shadow-lg shadow-violet-500/25 transition-all active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              New Recording
+            <Link href="/record">
+              <Button size="lg">
+                <Plus className="w-5 h-5" />
+                Start Recording
+              </Button>
             </Link>
           </div>
         )}
       </main>
-
-      {/* Desktop sidebar hint - hidden on mobile */}
-      <aside className="hidden md:flex fixed right-8 bottom-8">
-        <Link
-          href="/record"
-          className="flex items-center gap-3 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-medium rounded-2xl shadow-xl shadow-violet-500/25 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          New Recording
-        </Link>
-      </aside>
-
-      <BottomNav />
     </div>
   );
 }
-

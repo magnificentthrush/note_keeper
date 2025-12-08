@@ -1,199 +1,168 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import Recorder from '@/components/Recorder';
-import BottomNav from '@/components/BottomNav';
-import { Keypoint } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
+import { Keypoint } from '@/lib/types';
+import Recorder from '@/components/features/recording/Recorder';
+import Input from '@/components/ui/Input';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import { Loader2, LayoutDashboard, User } from 'lucide-react';
 
 export default function RecordPage() {
   const [title, setTitle] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const router = useRouter();
-  const supabase = createClient();
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.push('/auth');
+      } else {
+        setUser({ id: user.id });
+      }
+    });
+  }, [router]);
 
   const handleRecordingComplete = async (audioBlob: Blob, keypoints: Keypoint[]) => {
-    const lectureTitle = title.trim() || `Lecture ${new Date().toLocaleDateString()}`;
-    
+    if (!user) {
+      setUploadStatus('Error: Not authenticated');
+      return;
+    }
+
     setIsUploading(true);
-    setUploadStatus('Creating lecture...');
+    setUploadStatus('Uploading recording...');
 
     try {
-      // Get current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
-        console.error('Auth error:', userError);
-        throw new Error(`Authentication error: ${userError.message}`);
-      }
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-
-      // Verify user is authenticated
-      console.log('User authenticated:', user.id, user.email);
-
-      // Create lecture record first
-      const { data: lecture, error: lectureError } = await supabase
-        .from('lectures')
-        .insert({
-          user_id: user.id,
-          title: lectureTitle,
-          user_keypoints: keypoints,
-          status: 'processing',
-        })
-        .select()
-        .single();
-
-      if (lectureError) {
-        console.error('Lecture creation error:', {
-          message: lectureError.message,
-          details: lectureError.details,
-          hint: lectureError.hint,
-          code: lectureError.code,
-        });
-        throw new Error(`Failed to create lecture: ${lectureError.message || JSON.stringify(lectureError)}`);
-      }
-      
-      if (!lecture) {
-        throw new Error('Failed to create lecture: No data returned');
-      }
-
-      setUploadStatus('Uploading audio...');
-
-      // Upload via API route to avoid CORS and RLS issues
-      // The API route uses service role client which bypasses RLS
-      console.log('Uploading via API route (bypasses CORS and RLS)...');
-      
-      const fileExt = audioBlob.type.includes('mp4') ? 'mp4' : 'webm';
-      const fileName = `${user.id}/${lecture.id}.${fileExt}`;
-      
-      console.log('Uploading file:', fileName, 'Size:', audioBlob.size, 'Type:', audioBlob.type);
-      
-      // Get auth session for API route
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !session) {
-        throw new Error('Authentication session is invalid. Please sign out and sign in again.');
-      }
-
-      // Create FormData for API route
-      const formData = new FormData();
-      formData.append('file', audioBlob, `${lecture.id}.${fileExt}`);
-      formData.append('userId', user.id);
-      formData.append('lectureId', lecture.id);
+      const lectureId = crypto.randomUUID();
 
       // Upload via API route
+      const formData = new FormData();
+      formData.append('file', audioBlob);
+      formData.append('userId', user.id);
+      formData.append('lectureId', lectureId);
+
       const uploadResponse = await fetch('/api/upload-audio', {
         method: 'POST',
         body: formData,
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        console.error('Upload API error:', errorData);
-        throw new Error(errorData.error || 'Failed to upload audio');
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'Upload failed');
       }
 
       const uploadResult = await uploadResponse.json();
-      console.log('Upload successful:', uploadResult);
-      
-      const publicUrl = uploadResult.url;
-      
-      // For private buckets, we should use signed URLs instead
-      // But for now, store the path and generate signed URLs in the API route
+      const audioUrl = uploadResult.signedUrl || uploadResult.url;
 
-      // Update lecture with audio URL
-      const { error: updateError } = await supabase
+      setUploadStatus('Creating lecture record...');
+
+      // Create lecture record
+      const supabase = createClient();
+      const { error: insertError } = await supabase
         .from('lectures')
-        .update({ audio_url: publicUrl })
-        .eq('id', lecture.id);
-
-      if (updateError) {
-        console.error('Update error:', {
-          message: updateError.message,
-          details: updateError.details,
+        .insert({
+          id: lectureId,
+          user_id: user.id,
+          title: title || 'Untitled Lecture',
+          audio_url: uploadResult.url,
+          user_keypoints: keypoints.map(kp => ({ timestamp: kp.timestamp, note: kp.note })),
+          status: 'processing',
         });
-        throw new Error(`Failed to update lecture: ${updateError.message || JSON.stringify(updateError)}`);
+
+      if (insertError) {
+        throw new Error(`Database error: ${insertError.message}`);
       }
 
-      setUploadStatus('Processing with AI...');
+      setUploadStatus('Processing lecture with AI...');
 
-      // Trigger AI processing
-      const response = await fetch('/api/process-lecture', {
+      // Process with AI
+      const processResponse = await fetch('/api/process-lecture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lectureId: lecture.id }),
+        body: JSON.stringify({
+          lectureId,
+          audioUrl,
+          keypoints: keypoints.map(kp => ({ timestamp: kp.timestamp, note: kp.note })),
+        }),
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to process lecture');
+      if (!processResponse.ok) {
+        const error = await processResponse.json();
+        console.error('Processing error:', error);
       }
 
-      // Redirect to lecture view
-      router.push(`/lecture/${lecture.id}`);
+      router.push(`/lecture/${lectureId}`);
     } catch (error) {
-      console.error('Error uploading recording:', error);
-      
-      let errorMessage = 'Upload failed';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (error && typeof error === 'object') {
-        // Try to extract message from Supabase error
-        const errorObj = error as { message?: string; error?: string; details?: string };
-        errorMessage = errorObj.message || errorObj.error || errorObj.details || JSON.stringify(error);
-      }
-      
-      setUploadStatus(`Error: ${errorMessage}`);
+      console.error('Error:', error);
+      setUploadStatus(`Error: ${error instanceof Error ? error.message : 'Upload failed'}`);
       setIsUploading(false);
     }
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-zinc-950 pb-safe">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800">
-        <div className="px-4 py-4 flex items-center gap-4 max-w-2xl mx-auto">
-          <Link
-            href="/dashboard"
-            className="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-zinc-400" />
-          </Link>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Lecture title (optional)"
-            className="flex-1 px-4 py-2 bg-zinc-800/50 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
-          />
+      <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">New Recording</h1>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Record a lecture and let AI generate notes</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="sm">
+                <LayoutDashboard className="w-4 h-4" />
+                Dashboard
+              </Button>
+            </Link>
+            <Link href="/profile">
+              <Button variant="ghost" size="sm">
+                <User className="w-4 h-4" />
+                Profile
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="px-4 py-8 max-w-2xl mx-auto">
-        {isUploading ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <div className="w-20 h-20 rounded-full bg-violet-500/20 flex items-center justify-center mb-6">
-              <Loader2 className="w-10 h-10 text-violet-400 animate-spin" />
-            </div>
-            <h2 className="text-xl font-semibold text-white mb-2">Processing your lecture</h2>
-            <p className="text-zinc-400 text-center">{uploadStatus}</p>
-            <p className="text-zinc-500 text-sm mt-4 text-center max-w-xs">
-              This may take a few minutes. We&apos;re transcribing your audio and generating detailed notes.
-            </p>
-          </div>
-        ) : (
-          <Recorder onRecordingComplete={handleRecordingComplete} isUploading={isUploading} />
-        )}
-      </main>
+      {/* Main Content */}
+      <main className="max-w-3xl mx-auto px-8 py-8">
+          {/* Title input */}
+          <Card className="p-6 mb-8">
+            <Input
+              label="Lecture Title"
+              placeholder="e.g., Introduction to Machine Learning"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </Card>
 
-      <BottomNav />
+          {/* Recorder */}
+          <Card className="p-6">
+            {isUploading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="w-10 h-10 animate-spin text-[var(--accent)] mb-4" />
+                <p className="text-[var(--text-secondary)]">{uploadStatus}</p>
+              </div>
+            ) : (
+              <Recorder onRecordingComplete={handleRecordingComplete} isUploading={isUploading} />
+            )}
+          </Card>
+      </main>
     </div>
   );
 }
-
-

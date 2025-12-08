@@ -47,20 +47,33 @@ Guidelines:
 - Create clear, hierarchical notes with main topics and subtopics
 - Use markdown formatting (headers, bullet points, bold for emphasis)
 - Summarize key concepts concisely but thoroughly
-- When the transcript content aligns with or relates to a user-marked timestamp/note, highlight it using this format: **[IMPORTANT: User's note here]**
+- **CRITICAL: The user has marked specific timestamps and notes as important during the lecture. You MUST:**
+  1. Find the content in the transcript that corresponds to each timestamp
+  2. Integrate these user notes into the relevant sections of your notes
+  3. Use this format to highlight user-marked content: **🔖 USER NOTE: [the user's note here]**
+  4. Make sure ALL user key points appear prominently in your notes - they are the most important parts
 - Include speaker context when relevant (e.g., when the instructor emphasizes something or answers a student question)
-- Add a brief summary at the end
+- Add a brief summary at the end that references the user's key points
 - If the transcript is unclear or audio quality was poor, note that in your response`;
 
-  const userPrompt = `Please create detailed study notes from this lecture.
+  const userPrompt = `Please create detailed study notes from this lecture. Pay special attention to incorporating the user's key points below.
 
-## User's Key Points (timestamps they marked as important):
+## ⭐ USER'S KEY POINTS (These are the most important - make sure they appear in your notes):
 ${formattedKeypoints}
+
+These timestamps correspond to moments the user marked as important during the lecture. Find the corresponding content in the transcript and make sure each of these points is:
+1. Included in the relevant section of your notes
+2. Highlighted with the format: **🔖 USER NOTE: [the user's note]**
+3. Contextualized within the surrounding lecture content
 
 ## Lecture Transcript:
 ${formattedTranscript}
 
-Create comprehensive study notes that incorporate and highlight the user's marked key points.`;
+Create comprehensive study notes that:
+- Organize the transcript into clear topics and sections
+- Prominently feature and contextualize ALL of the user's key points above
+- Provide additional context and explanations around the user's marked points
+- Use the transcript to explain and expand on what the user found important`;
 
   // Check which LLM provider to use (prefer Gemini if available, fallback to OpenAI)
   const hasGemini = !!process.env.GOOGLE_GEMINI_API_KEY;

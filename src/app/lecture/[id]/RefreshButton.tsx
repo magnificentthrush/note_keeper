@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Zap } from 'lucide-react';
+import { useState } from 'react';
+import Button from '@/components/ui/Button';
 
 interface RefreshButtonProps {
   lectureId: string;
@@ -17,62 +18,44 @@ export default function RefreshButton({ lectureId, canRetry = false }: RefreshBu
     router.refresh();
   };
 
-  const handleRetryProcessing = async () => {
+  const handleRetry = async () => {
     setIsRetrying(true);
     try {
       const response = await fetch('/api/process-lecture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lectureId }),
+        body: JSON.stringify({ lectureId, retryNotes: true }),
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to process lecture'}`);
-      } else {
-        // Refresh the page to see updated status
-        setTimeout(() => {
-          router.refresh();
-        }, 2000);
+        console.error('Retry failed');
       }
+      router.refresh();
     } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to retry processing'}`);
+      console.error('Retry error:', error);
     } finally {
       setIsRetrying(false);
     }
   };
 
-  return (
-    <div className="flex gap-3">
-      {canRetry && (
-        <button
-          onClick={handleRetryProcessing}
-          disabled={isRetrying}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-xl transition-all disabled:opacity-50"
-        >
-          {isRetrying ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="w-4 h-4" />
-              Retry AI Notes
-            </>
-          )}
-        </button>
-      )}
-      <button
-        onClick={handleRefresh}
-        disabled={isRetrying}
-        className="inline-flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-xl transition-all disabled:opacity-50"
+  if (canRetry) {
+    return (
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={handleRetry}
+        isLoading={isRetrying}
       >
-        <RefreshCw className="w-4 h-4" />
-        Refresh
-      </button>
-    </div>
+        <Zap className="w-4 h-4" />
+        Retry AI Notes
+      </Button>
+    );
+  }
+
+  return (
+    <Button variant="secondary" onClick={handleRefresh}>
+      <RefreshCw className="w-4 h-4" />
+      Check Status
+    </Button>
   );
 }
-
-
