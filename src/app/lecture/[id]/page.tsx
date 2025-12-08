@@ -89,7 +89,7 @@ export default async function LecturePage({ params }: PageProps) {
             <p className="text-zinc-400 mb-6 max-w-sm">
               We&apos;re transcribing your audio and generating detailed study notes. This usually takes a few minutes.
             </p>
-            <RefreshButton />
+            <RefreshButton lectureId={id} />
           </div>
         )}
 
@@ -118,6 +118,18 @@ export default async function LecturePage({ params }: PageProps) {
         {/* Completed - show notes */}
         {typedLecture.status === 'completed' && typedLecture.final_notes && (
           <>
+            {/* Show retry button if notes contain error message */}
+            {typedLecture.final_notes.includes('quota') || 
+             typedLecture.final_notes.includes('Transcript Available') ||
+             typedLecture.final_notes.includes('Error') ? (
+              <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <p className="text-amber-400 text-sm mb-3">
+                  AI notes generation failed. Click below to retry.
+                </p>
+                <RefreshButton lectureId={id} canRetry={true} />
+              </div>
+            ) : null}
+            
             {/* Key points summary */}
             {keypoints.length > 0 && (
               <div className="mb-8 p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl">
