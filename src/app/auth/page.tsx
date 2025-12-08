@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { BookOpen, Mail, Lock, Loader2 } from 'lucide-react';
+import { BookOpen, Mail, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);

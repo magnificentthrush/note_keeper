@@ -77,7 +77,6 @@ Create comprehensive study notes that:
 
   // Check which LLM provider to use (prefer Gemini if available, fallback to OpenAI)
   const hasGemini = !!process.env.GOOGLE_GEMINI_API_KEY;
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
 
   if (hasGemini) {
     // Prefer Gemini (free tier) if available
@@ -110,9 +109,10 @@ Create comprehensive study notes that:
           console.log(`Successfully used model: ${modelName}`);
           return text;
         }
-      } catch (error: any) {
-        console.warn(`Model ${modelName} failed:`, error.message);
-        lastError = error;
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`Model ${modelName} failed:`, errorMessage);
+        lastError = error instanceof Error ? error : new Error(String(error));
         // Continue to next model
       }
     }
@@ -122,7 +122,7 @@ Create comprehensive study notes that:
       `All Gemini models failed. Last error: ${lastError?.message}. ` +
       `Available models might have changed. Please check Google AI Studio or set GEMINI_MODEL in .env.local`
     );
-  } else if (useOpenAI) {
+  } else if (!!process.env.OPENAI_API_KEY) {
     console.log('Using OpenAI for note generation');
     const openai = getOpenAIClient();
     const completion = await openai.chat.completions.create({
@@ -275,18 +275,19 @@ export async function POST(request: NextRequest) {
         
         notes = await generateNotesWithLLM(formattedTranscript, formattedKeypoints);
         console.log('Notes generated successfully, length:', notes.length);
-      } catch (llmError: any) {
+      } catch (llmError: unknown) {
+        const errorObj = llmError as { status?: number; statusText?: string; message?: string; code?: string; type?: string; error?: unknown };
         console.error('LLM API error details:', {
-          status: llmError?.status,
-          statusText: llmError?.statusText,
-          message: llmError?.message,
-          code: llmError?.code,
-          type: llmError?.type,
-          error: llmError?.error,
+          status: errorObj?.status,
+          statusText: errorObj?.statusText,
+          message: errorObj?.message,
+          code: errorObj?.code,
+          type: errorObj?.type,
+          error: errorObj?.error,
         });
         
-        const errorMessage = llmError?.message || '';
-        const errorStatus = llmError?.status;
+        const errorMessage = errorObj?.message || '';
+        const errorStatus = errorObj?.status;
         
         // Check for specific quota/billing errors
         const isQuotaError = 

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const blob = new Blob([arrayBuffer], { type: file.type });
 
-    const { data, error } = await serviceClient.storage
+    const { error } = await serviceClient.storage
       .from('lecture-audio')
       .upload(fileName, blob, {
         contentType: file.type,
@@ -64,11 +64,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Storage upload error:', error);
+      const errorObj = error as { statusCode?: number };
       return NextResponse.json(
         { 
           error: error.message || 'Upload failed',
           details: error,
-          statusCode: (error as any).statusCode 
+          statusCode: errorObj?.statusCode 
         },
         { status: 500 }
       );
