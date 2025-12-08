@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
         // Format: https://project.supabase.co/storage/v1/object/sign/lecture-audio/userId/lectureId.ext?token=...
         // Or: https://project.supabase.co/storage/v1/object/public/lecture-audio/userId/lectureId.ext
         const urlParts = lecture.audio_url.split('/');
-        const audioIndex = urlParts.findIndex(part => part === 'lecture-audio');
+        const audioIndex = urlParts.findIndex((part: string) => part === 'lecture-audio');
         
         if (audioIndex !== -1 && audioIndex < urlParts.length - 1) {
           // Get the path after 'lecture-audio'
