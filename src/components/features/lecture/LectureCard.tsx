@@ -24,10 +24,10 @@ function formatRelativeDate(dateString: string): string {
 
 function StatusBadge({ status }: { status: Lecture['status'] }) {
   const config = {
-    recording: { icon: Clock, text: 'Recording', variant: 'warning' as const },
+    recording: { icon: Clock, text: 'Recording', variant: 'warning' as const, animate: false },
     processing: { icon: Loader2, text: 'Processing', variant: 'info' as const, animate: true },
-    completed: { icon: CheckCircle2, text: 'Ready', variant: 'success' as const },
-    error: { icon: AlertCircle, text: 'Error', variant: 'error' as const },
+    completed: { icon: CheckCircle2, text: 'Ready', variant: 'success' as const, animate: false },
+    error: { icon: AlertCircle, text: 'Error', variant: 'error' as const, animate: false },
   };
   const { icon, text, variant, animate } = config[status] || config.error;
   return <Badge icon={icon} text={text} variant={variant} animate={animate} />;
