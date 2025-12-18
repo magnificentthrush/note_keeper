@@ -3,13 +3,15 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 interface HeaderProps {
-  title?: string;
+  title?: string | ReactNode;
   subtitle?: string;
   backHref?: string;
   actions?: ReactNode;
 }
 
 export default function Header({ title, subtitle, backHref, actions }: HeaderProps) {
+  const isStringTitle = typeof title === 'string';
+  
   return (
     <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-sm sticky top-0 z-40">
       <div className="h-full px-8 flex items-center justify-between">
@@ -24,9 +26,13 @@ export default function Header({ title, subtitle, backHref, actions }: HeaderPro
           )}
           <div>
             {title && (
-              <h1 className="text-xl font-bold text-[var(--text-primary)]">
-                {title}
-              </h1>
+              isStringTitle ? (
+                <h1 className="text-xl font-bold text-[var(--text-primary)]">
+                  {title}
+                </h1>
+              ) : (
+                title
+              )
             )}
             {subtitle && (
               <p className="text-sm text-[var(--text-muted)]">

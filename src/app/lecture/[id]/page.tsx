@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Lecture, Keypoint } from '@/lib/types';
 import RefreshButton from './RefreshButton';
+import EditableTitle from './EditableTitle';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +65,7 @@ export default async function LecturePage({ params }: PageProps) {
       <main className="pl-64">
         <Header
           backHref="/dashboard"
-          title={typedLecture.title || 'Untitled Lecture'}
+          title={<EditableTitle lectureId={id} initialTitle={typedLecture.title || 'Untitled Lecture'} />}
           subtitle={formatDate(typedLecture.created_at)}
           actions={
             typedLecture.status === 'completed' && (

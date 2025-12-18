@@ -3,9 +3,19 @@ export interface Keypoint {
   note: string;
 }
 
+export interface Folder {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  lecture_count?: number; // Optional: computed field for UI
+}
+
 export interface Lecture {
   id: string;
   user_id: string;
+  folder_id: string | null;
   title: string;
   audio_url: string | null;
   transcript_json: TranscriptResponse | null;

@@ -41,39 +41,40 @@ async function generateNotesWithLLM(
   formattedTranscript: string,
   formattedKeypoints: string
 ): Promise<string> {
-  const systemPrompt = `You are an expert study assistant and note-taker. Your job is to create comprehensive, well-organized study notes from lecture transcripts.
+  const systemPrompt = `You are a concise note-taker. Your job is to create structured, summarized notes ONLY from what the instructor actually said in the lecture transcript.
 
-Guidelines:
-- Create clear, hierarchical notes with main topics and subtopics
-- Use markdown formatting (headers, bullet points, bold for emphasis)
-- Summarize key concepts concisely but thoroughly
-- **CRITICAL: The user has marked specific timestamps and notes as important during the lecture. You MUST:**
-  1. Find the content in the transcript that corresponds to each timestamp
-  2. Integrate these user notes into the relevant sections of your notes
-  3. Use this format to highlight user-marked content: **🔖 USER NOTE: [the user's note here]**
-  4. Make sure ALL user key points appear prominently in your notes - they are the most important parts
-- Include speaker context when relevant (e.g., when the instructor emphasizes something or answers a student question)
-- Add a brief summary at the end that references the user's key points
-- If the transcript is unclear or audio quality was poor, note that in your response`;
+STRICT RULES:
+- **ONLY** summarize what the instructor actually said - DO NOT add explanations, context, or information not present in the transcript
+- DO NOT infer or expand on concepts beyond what was explicitly stated
+- Keep notes concise and to the point - avoid redundancy
+- Use markdown formatting (headers for topics, bullet points for key points)
+- Organize content into clear hierarchical sections based on the transcript flow
+- If the transcript is unclear or audio quality was poor, note that briefly
 
-  const userPrompt = `Please create detailed study notes from this lecture. Pay special attention to incorporating the user's key points below.
+STRUCTURE:
+- Use ## for main topics/sections
+- Use bullet points for key points within each section
+- Keep bullet points brief (1-2 sentences max per point)
+- If user marked key points during recording, highlight them with: **🔖 USER NOTE: [note]**
 
-## ⭐ USER'S KEY POINTS (These are the most important - make sure they appear in your notes):
+CRITICAL: Do not add any information, explanations, or context that was not explicitly stated by the instructor in the transcript. Only summarize and organize what was actually said.`;
+
+  const userPrompt = `Create concise, structured study notes from this lecture transcript. Only include information that the instructor actually said - do not add explanations or expand on concepts.
+
+## ⭐ USER'S MARKED KEY POINTS:
 ${formattedKeypoints}
 
-These timestamps correspond to moments the user marked as important during the lecture. Find the corresponding content in the transcript and make sure each of these points is:
-1. Included in the relevant section of your notes
-2. Highlighted with the format: **🔖 USER NOTE: [the user's note]**
-3. Contextualized within the surrounding lecture content
+Find these timestamps in the transcript and include them in your notes with the format: **🔖 USER NOTE: [the user's note]**
 
 ## Lecture Transcript:
 ${formattedTranscript}
 
-Create comprehensive study notes that:
-- Organize the transcript into clear topics and sections
-- Prominently feature and contextualize ALL of the user's key points above
-- Provide additional context and explanations around the user's marked points
-- Use the transcript to explain and expand on what the user found important`;
+Create structured notes that:
+- Summarize only what the instructor said (no additions or explanations)
+- Organize content into clear topics/sections using headers
+- Use bullet points for key points (keep each point concise)
+- Include the user's marked key points at the relevant sections
+- Maintain the original flow and order of topics from the transcript`;
 
   // Check which LLM provider to use (prefer Gemini if available, fallback to OpenAI)
   const hasGemini = !!process.env.GOOGLE_GEMINI_API_KEY;
@@ -99,7 +100,12 @@ Create comprehensive study notes that:
     for (const modelName of modelNames) {
       try {
         console.log(`Trying Gemini model: ${modelName}`);
-        const model = genAI.getGenerativeModel({ model: modelName });
+        const model = genAI.getGenerativeModel({ 
+          model: modelName,
+          generationConfig: {
+            temperature: 0.4, // Lower temperature for more factual, less creative output
+          },
+        });
         
         const result = await model.generateContent(`${systemPrompt}\n\n${userPrompt}`);
         const response = await result.response;
@@ -131,7 +137,7 @@ Create comprehensive study notes that:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
+      temperature: 0.4,
       max_tokens: 4000,
     });
     return completion.choices[0]?.message?.content || 'Unable to generate notes.';
@@ -167,6 +173,50 @@ function formatTranscriptForPrompt(transcript: TranscriptResponse): string {
       return `[${startMins}:${startSecs.toString().padStart(2, '0')}] ${speaker}: ${utterance.text}`;
     })
     .join('\n\n');
+}
+
+// Extract a title from the generated notes
+function extractTitleFromNotes(notes: string): string | null {
+  // Try to find the first markdown heading (# or ##)
+  const headingMatch = notes.match(/^#{1,2}\s+(.+)$/m);
+  if (headingMatch) {
+    let title = headingMatch[1].trim();
+    // Remove any markdown formatting like ** or *
+    title = title.replace(/\*+/g, '').trim();
+    // Remove common prefixes
+    title = title.replace(/^(Lecture Notes:|Notes:|Study Notes:|Summary:)\s*/i, '').trim();
+    if (title.length > 3) {
+      // Truncate to 60 characters max
+      return title.length > 60 ? title.substring(0, 57) + '...' : title;
+    }
+  }
+  
+  // Try to find the first bold text as a title candidate
+  const boldMatch = notes.match(/\*\*([^*]+)\*\*/);
+  if (boldMatch) {
+    const title = boldMatch[1].trim();
+    if (title.length > 3 && title.length < 80) {
+      return title.length > 60 ? title.substring(0, 57) + '...' : title;
+    }
+  }
+  
+  // Try to get a meaningful phrase from the first paragraph
+  const lines = notes.split('\n').filter(line => line.trim().length > 10);
+  if (lines.length > 0) {
+    let firstLine = lines[0].trim();
+    // Remove markdown formatting
+    firstLine = firstLine.replace(/^[#*>\-\s]+/, '').trim();
+    if (firstLine.length > 10) {
+      // Take first sentence or truncate
+      const sentenceEnd = firstLine.search(/[.!?]/);
+      if (sentenceEnd > 0 && sentenceEnd < 60) {
+        return firstLine.substring(0, sentenceEnd);
+      }
+      return firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
+    }
+  }
+  
+  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -320,12 +370,24 @@ export async function POST(request: NextRequest) {
       }
 
       // Save notes and update status
+      // Also auto-generate title from notes if user didn't provide one
+      const updateData: { final_notes: string; status: string; title?: string } = {
+        final_notes: notes,
+        status: 'completed',
+      };
+
+      // Check if the lecture has a default/untitled title
+      if (!lecture.title || lecture.title === 'Untitled Lecture') {
+        const extractedTitle = extractTitleFromNotes(notes);
+        if (extractedTitle) {
+          updateData.title = extractedTitle;
+          console.log('Auto-generated title from notes:', extractedTitle);
+        }
+      }
+
       await supabase
         .from('lectures')
-        .update({
-          final_notes: notes,
-          status: 'completed',
-        })
+        .update(updateData)
         .eq('id', lectureId);
 
       return NextResponse.json({ success: true, lectureId });

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Keypoint } from '@/lib/types';
 import Recorder from '@/components/features/recording/Recorder';
+import { FolderSelector } from '@/components/features/folder';
 import Input from '@/components/ui/Input';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -13,10 +14,20 @@ import { Loader2, LayoutDashboard, User } from 'lucide-react';
 
 export default function RecordPage() {
   const [title, setTitle] = useState('');
+  const [folderId, setFolderId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [user, setUser] = useState<{ id: string } | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Get folderId from URL if present
+    const urlFolderId = searchParams.get('folderId');
+    if (urlFolderId) {
+      setFolderId(urlFolderId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -62,13 +73,14 @@ export default function RecordPage() {
 
       setUploadStatus('Creating lecture record...');
 
-      // Create lecture record
+      // Create lecture record with folder_id
       const supabase = createClient();
       const { error: insertError } = await supabase
         .from('lectures')
         .insert({
           id: lectureId,
           user_id: user.id,
+          folder_id: folderId, // Include folder_id
           title: title || 'Untitled Lecture',
           audio_url: uploadResult.url,
           user_keypoints: keypoints.map(kp => ({ timestamp: kp.timestamp, note: kp.note })),
@@ -141,8 +153,16 @@ export default function RecordPage() {
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-8 py-8">
+          {/* Folder selector */}
+          <Card className="p-6 mb-6">
+            <FolderSelector
+              selectedFolderId={folderId}
+              onFolderChange={setFolderId}
+            />
+          </Card>
+
           {/* Title input */}
-          <Card className="p-6 mb-8">
+          <Card className="p-6 mb-6">
             <Input
               label="Lecture Title"
               placeholder="e.g., Introduction to Machine Learning"

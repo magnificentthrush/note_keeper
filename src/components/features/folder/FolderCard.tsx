@@ -3,13 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { FileText, Trash2, Loader2, Edit2, Check, X } from 'lucide-react';
+import { FolderOpen, Trash2, Loader2, Edit2, Check, X, FileText } from 'lucide-react';
 import Card from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import MoveToFolderDropdown from './MoveToFolderDropdown';
-import { Lecture } from '@/lib/types';
-import { Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Folder } from '@/lib/types';
 
 function formatRelativeDate(dateString: string): string {
   const date = new Date(dateString);
@@ -23,28 +20,16 @@ function formatRelativeDate(dateString: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function StatusBadge({ status }: { status: Lecture['status'] }) {
-  const config = {
-    recording: { icon: Clock, text: 'Recording', variant: 'warning' as const, animate: false },
-    processing: { icon: Loader2, text: 'Processing', variant: 'info' as const, animate: true },
-    completed: { icon: CheckCircle2, text: 'Ready', variant: 'success' as const, animate: false },
-    error: { icon: AlertCircle, text: 'Error', variant: 'error' as const, animate: false },
-  };
-  const { icon, text, variant, animate } = config[status] || config.error;
-  return <Badge icon={icon} text={text} variant={variant} animate={animate} />;
+interface FolderCardProps {
+  folder: Folder;
 }
 
-interface LectureCardProps {
-  lecture: Lecture;
-  showMoveOption?: boolean;
-}
-
-export default function LectureCard({ lecture, showMoveOption = true }: LectureCardProps) {
+export default function FolderCard({ folder }: FolderCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(lecture.title || 'Untitled Lecture');
-  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [editedName, setEditedName] = useState(folder.name);
+  const [isSavingName, setIsSavingName] = useState(false);
   const router = useRouter();
 
   const handleDelete = async (e: React.MouseEvent) => {
@@ -59,60 +44,60 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
     setIsDeleting(true);
     
     try {
-      const response = await fetch(`/api/delete-lecture?lectureId=${lecture.id}`, {
+      const response = await fetch(`/api/folders?folderId=${folder.id}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to delete lecture');
+        throw new Error(error.error || 'Failed to delete folder');
       }
 
       router.refresh();
     } catch (error) {
-      console.error('Error deleting lecture:', error);
-      alert(error instanceof Error ? error.message : 'Failed to delete lecture');
+      console.error('Error deleting folder:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete folder');
       setIsDeleting(false);
       setShowConfirm(false);
     }
   };
 
-  const handleSaveTitle = async (e?: React.MouseEvent | React.KeyboardEvent) => {
+  const handleSaveName = async (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
-    const newTitle = editedTitle.trim() || 'Untitled Lecture';
-    if (newTitle === lecture.title) {
+    const newName = editedName.trim() || 'Untitled Folder';
+    if (newName === folder.name) {
       setIsEditing(false);
       return;
     }
 
-    setIsSavingTitle(true);
+    setIsSavingName(true);
     try {
-      const response = await fetch('/api/update-lecture-title', {
+      const response = await fetch('/api/folders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lectureId: lecture.id,
-          title: newTitle,
+          folderId: folder.id,
+          name: newName,
         }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to update title');
+        throw new Error(error.error || 'Failed to update folder name');
       }
 
       setIsEditing(false);
       router.refresh();
     } catch (error) {
-      console.error('Error updating title:', error);
-      alert(error instanceof Error ? error.message : 'Failed to update title');
-      setEditedTitle(lecture.title || 'Untitled Lecture');
+      console.error('Error updating folder name:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update folder name');
+      setEditedName(folder.name);
     } finally {
-      setIsSavingTitle(false);
+      setIsSavingName(false);
     }
   };
 
@@ -121,7 +106,7 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
       e.preventDefault();
       e.stopPropagation();
     }
-    setEditedTitle(lecture.title || 'Untitled Lecture');
+    setEditedName(folder.name);
     setIsEditing(false);
   };
 
@@ -133,30 +118,24 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleSaveTitle(e);
+      handleSaveName(e);
     } else if (e.key === 'Escape') {
       handleCancelEdit();
     }
   };
 
+  const lectureCount = folder.lecture_count || 0;
+
   return (
     <Card hover className="p-5 h-full group relative">
       {/* Action buttons container */}
       <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        {/* Move to folder button */}
-        {showMoveOption && !isEditing && (
-          <MoveToFolderDropdown
-            lectureId={lecture.id}
-            currentFolderId={lecture.folder_id}
-          />
-        )}
-
         {/* Edit button */}
         {!isEditing && (
           <button
             onClick={handleStartEdit}
             className="w-8 h-8 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--accent)]/20 flex items-center justify-center transition-all duration-200"
-            title="Rename lecture"
+            title="Rename folder"
           >
             <Edit2 className="w-4 h-4 text-[var(--text-secondary)] hover:text-[var(--accent)]" />
           </button>
@@ -167,7 +146,7 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
           onClick={handleDelete}
           disabled={isDeleting}
           className="w-8 h-8 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--error)]/20 flex items-center justify-center transition-all duration-200 disabled:opacity-50"
-          title="Delete lecture"
+          title="Delete folder"
         >
           {isDeleting ? (
             <Loader2 className="w-4 h-4 animate-spin text-[var(--error)]" />
@@ -184,10 +163,10 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
           onClick={(e) => e.stopPropagation()}
         >
           <p className="text-sm text-[var(--text-primary)] text-center font-medium">
-            Delete this recording?
+            Delete this folder?
           </p>
           <p className="text-xs text-[var(--text-muted)] text-center">
-            This action cannot be undone.
+            Lectures will be moved to uncategorized.
           </p>
           <div className="flex gap-2 mt-2">
             <Button
@@ -213,14 +192,14 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
         </div>
       )}
 
-      <Link href={`/lecture/${lecture.id}`} className="block">
+      <Link href={`/dashboard/folder/${folder.id}`} className="block">
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-lg bg-[var(--accent)]/10 flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5 text-[var(--accent)]" />
+          <div className="w-10 h-10 rounded-lg bg-[var(--warning)]/10 flex items-center justify-center flex-shrink-0">
+            <FolderOpen className="w-5 h-5 text-[var(--warning)]" />
           </div>
         </div>
         
-        {/* Editable Title */}
+        {/* Editable Name */}
         {isEditing ? (
           <div 
             className="flex items-center gap-2 mb-1"
@@ -228,21 +207,21 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
           >
             <input
               type="text"
-              value={editedTitle}
-              onChange={(e) => setEditedTitle(e.target.value)}
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
               onKeyDown={handleKeyDown}
               className="flex-1 px-2 py-1 text-sm font-semibold bg-[var(--bg-primary)] border border-[var(--accent)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 text-[var(--text-primary)]"
               autoFocus
-              disabled={isSavingTitle}
+              disabled={isSavingName}
               onClick={(e) => e.stopPropagation()}
             />
             <button
-              onClick={handleSaveTitle}
-              disabled={isSavingTitle}
+              onClick={handleSaveName}
+              disabled={isSavingName}
               className="w-7 h-7 flex items-center justify-center text-[var(--success)] hover:bg-[var(--success)]/10 rounded-lg transition-colors"
               title="Save"
             >
-              {isSavingTitle ? (
+              {isSavingName ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Check className="w-4 h-4" />
@@ -250,7 +229,7 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
             </button>
             <button
               onClick={handleCancelEdit}
-              disabled={isSavingTitle}
+              disabled={isSavingName}
               className="w-7 h-7 flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
               title="Cancel"
             >
@@ -259,25 +238,21 @@ export default function LectureCard({ lecture, showMoveOption = true }: LectureC
           </div>
         ) : (
           <h3 className="font-semibold text-[var(--text-primary)] mb-1 line-clamp-1">
-            {lecture.title || 'Untitled Lecture'}
+            {folder.name}
           </h3>
         )}
         
         <p className="text-sm text-[var(--text-muted)] mb-3">
-          {formatRelativeDate(lecture.created_at)}
+          {formatRelativeDate(folder.created_at)}
         </p>
-        
-        {lecture.user_keypoints && lecture.user_keypoints.length > 0 && (
-          <p className="text-xs text-[var(--text-muted)]">
-            {lecture.user_keypoints.length} key point{lecture.user_keypoints.length !== 1 ? 's' : ''}
-          </p>
-        )}
       </Link>
 
-      {/* Status Badge - Bottom Right */}
-      <div className="absolute bottom-3 right-3 z-10">
-        <StatusBadge status={lecture.status} />
+      {/* Lecture count - Bottom Right */}
+      <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+        <FileText className="w-3.5 h-3.5" />
+        <span>{lectureCount} lecture{lectureCount !== 1 ? 's' : ''}</span>
       </div>
     </Card>
   );
 }
+
