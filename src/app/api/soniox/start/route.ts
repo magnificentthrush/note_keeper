@@ -178,14 +178,20 @@ export async function POST(request: NextRequest) {
       // Use async model for transcription
       model: 'stt-async-v3',
       
-      // Set language hints for bilingual support (English and Urdu)
-      language_hints: ['en', 'ur'],
+      // Set language hints - Urdu first to prioritize detection of Urdu speech
+      language_hints: ['ur', 'en'],
       
       // Enable language identification - each token will include a "language" field
       enable_language_identification: true,
       
       // Enable speaker diarization - each token will include a "speaker" field
       enable_speaker_diarization: true,
+      
+      // Enable English translation for ALL non-English speech - outputs everything in English
+      translation: {
+        type: 'one_way',
+        target_language: 'en',
+      },
     };
 
     // Use file_id if available, otherwise fall back to audio_url

@@ -161,19 +161,53 @@ export async function GET(request: NextRequest) {
 
       const transcriptData = await transcriptResponse.json();
       console.log('✅ Transcript Data received');
+      console.log('📋 Transcript Data keys:', Object.keys(transcriptData));
+      console.log('📋 Full transcript data structure:', JSON.stringify(transcriptData, null, 2).substring(0, 2000));
 
-      // Process tokens array into readable text
-      let transcriptText = '';
-      if (transcriptData.tokens && Array.isArray(transcriptData.tokens)) {
-        transcriptText = processTokens(transcriptData.tokens);
-      } else if (transcriptData.text) {
-        // Fallback if text is directly available
-        transcriptText = transcriptData.text;
+      // When translation is enabled, Soniox returns translations array with English translation
+      // Priority: Use English translation; do NOT include original Urdu text
+      let finalTranscript = '';
+      
+      // 1) translations array (preferred)
+      if (Array.isArray(transcriptData.translations) && transcriptData.translations.length > 0) {
+        const englishTranslation = transcriptData.translations.find(
+          (t: { target_language?: string }) => t.target_language === 'en'
+        ) || transcriptData.translations[0];
+        
+        if (englishTranslation?.text) {
+          finalTranscript = englishTranslation.text;
+          console.log('✅ Using English translation from translations array');
+        }
+      }
+      
+      // 2) translation object (alternate structure)
+      if (!finalTranscript && transcriptData.translation?.text) {
+        finalTranscript = transcriptData.translation.text;
+        console.log('✅ Using translation.text from translation object');
+      }
+      
+      // 3) tokens: use only translation tokens
+      if (!finalTranscript && Array.isArray(transcriptData.tokens)) {
+        const translationTokens = transcriptData.tokens.filter(
+          (t: { translation_status?: string }) => t.translation_status === 'translation'
+        );
+        if (translationTokens.length > 0) {
+          finalTranscript = translationTokens.map((t: { text: string }) => t.text).join('');
+          console.log('✅ Extracted English translation from translation tokens');
+        } else {
+          console.warn('⚠️ No translation tokens found; not using original text to avoid Urdu output');
+        }
+      }
+      
+      // 4) If still empty, return empty string to ensure no Urdu is returned
+      if (!finalTranscript) {
+        finalTranscript = '';
+        console.warn('⚠️ No English translation found; returning empty transcript to avoid Urdu output');
       }
 
       return NextResponse.json({
         status: 'completed',
-        text: transcriptText,
+        text: finalTranscript,
         // Also return raw tokens for potential future processing
         tokens: transcriptData.tokens,
       });
