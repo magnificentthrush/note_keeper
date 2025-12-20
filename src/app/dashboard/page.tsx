@@ -1,16 +1,24 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { Plus, FileText, FolderOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import LectureCard from '@/components/features/lecture/LectureCard';
 import { FolderCard, CreateFolderButton } from '@/components/features/folder';
 import { Lecture, Folder } from '@/lib/types';
+import TabSwitcher from './TabSwitcher';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createClient();
+  const params = await searchParams;
+  const currentTab = params.tab || 'courses';
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -60,12 +68,9 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">
-              {totalFolders} folder{totalFolders !== 1 ? 's' : ''} • {totalUncategorized} uncategorized
-            </p>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/profile">
@@ -73,7 +78,8 @@ export default async function DashboardPage() {
                 Profile
               </Button>
             </Link>
-            <Link href="/record">
+            {/* New Recording button - hidden on mobile, shown on desktop */}
+            <Link href="/record" className="hidden md:block">
               <Button>
                 <Plus className="w-4 h-4" />
                 New Recording
@@ -84,41 +90,26 @@ export default async function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-8 py-8">
-        {/* Folders Section */}
-        <section className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <FolderOpen className="w-5 h-5 text-[var(--warning)]" />
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Courses</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {foldersWithCount.map((folder) => (
-              <FolderCard key={folder.id} folder={folder} />
-            ))}
-            <CreateFolderButton />
-          </div>
-        </section>
-
-        {/* Uncategorized Lectures Section */}
-        {totalUncategorized > 0 && (
-          <section>
-            <div className="flex items-center gap-3 mb-6">
-              <FileText className="w-5 h-5 text-[var(--text-muted)]" />
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Uncategorized</h2>
-              <span className="text-sm text-[var(--text-muted)]">({totalUncategorized})</span>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {uncategorizedLectures?.map((lecture: Lecture) => (
-                <LectureCard key={lecture.id} lecture={lecture} />
-              ))}
-            </div>
-          </section>
+      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        {/* Tab Switcher - Only show if there's content in at least one tab */}
+        {!(totalFolders === 0 && totalUncategorized === 0) && (
+          <Suspense fallback={<div className="h-12 mb-6" />}>
+            <TabSwitcher foldersCount={totalFolders} uncategorizedCount={totalUncategorized} />
+          </Suspense>
         )}
 
-        {/* Empty State */}
-        {totalFolders === 0 && totalUncategorized === 0 && (
+        {/* New Recording button - shown on mobile above content */}
+        <div className="mb-6 md:hidden">
+          <Link href="/record">
+            <Button className="w-full">
+              <Plus className="w-4 h-4" />
+              New Recording
+            </Button>
+          </Link>
+        </div>
+
+        {/* Empty State - Only show if both tabs are empty */}
+        {totalFolders === 0 && totalUncategorized === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-20 h-20 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-center mb-6">
               <FolderOpen className="w-10 h-10 text-[var(--text-muted)]" />
@@ -138,6 +129,59 @@ export default async function DashboardPage() {
               </Link>
             </div>
           </div>
+        ) : (
+          <>
+            {/* Courses Tab Content */}
+            {currentTab === 'courses' && (
+              <section>
+                {totalFolders > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {foldersWithCount.map((folder) => (
+                      <FolderCard key={folder.id} folder={folder} />
+                    ))}
+                    <CreateFolderButton />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-center mb-4">
+                      <FolderOpen className="w-8 h-8 text-[var(--text-muted)]" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+                      No courses yet
+                    </h2>
+                    <p className="text-[var(--text-secondary)] mb-4 max-w-md">
+                      Create a course folder to organize your lectures.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Uncategorized Tab Content */}
+            {currentTab === 'uncategorized' && (
+              <section>
+                {totalUncategorized > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {uncategorizedLectures?.map((lecture: Lecture) => (
+                      <LectureCard key={lecture.id} lecture={lecture} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-center mb-4">
+                      <FileText className="w-8 h-8 text-[var(--text-muted)]" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
+                      No uncategorized lectures
+                    </h2>
+                    <p className="text-[var(--text-secondary)] max-w-md">
+                      All your lectures are organized in courses.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
+          </>
         )}
       </main>
     </div>

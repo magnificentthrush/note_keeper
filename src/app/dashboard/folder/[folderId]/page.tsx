@@ -50,7 +50,7 @@ export default async function FolderPage({ params }: PageProps) {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/dashboard"
@@ -65,14 +65,14 @@ export default async function FolderPage({ params }: PageProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <AddFromUncategorizedButton folderId={folderId} />
+          <div className="flex items-center gap-4">
             <Link href="/profile">
               <Button variant="ghost" size="sm">
                 Profile
               </Button>
             </Link>
-            <Link href={`/record?folderId=${folderId}`}>
+            {/* New Recording button - hidden on mobile, shown on desktop */}
+            <Link href={`/record?folderId=${folderId}`} className="hidden md:block">
               <Button>
                 <Plus className="w-4 h-4" />
                 New Recording
@@ -83,13 +83,29 @@ export default async function FolderPage({ params }: PageProps) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        {/* New Recording button - shown on mobile above lectures */}
+        <div className="mb-6 md:hidden">
+          <Link href={`/record?folderId=${folderId}`}>
+            <Button className="w-full">
+              <Plus className="w-4 h-4" />
+              New Recording
+            </Button>
+          </Link>
+        </div>
+
         {lectures && lectures.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {lectures.map((lecture: Lecture) => (
-              <LectureCard key={lecture.id} lecture={lecture} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {lectures.map((lecture: Lecture) => (
+                <LectureCard key={lecture.id} lecture={lecture} />
+              ))}
+            </div>
+            {/* Add from Uncategorized button - at the end of lectures */}
+            <div className="mt-6">
+              <AddFromUncategorizedButton folderId={folderId} />
+            </div>
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-20 h-20 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border)] flex items-center justify-center mb-6">
@@ -107,6 +123,10 @@ export default async function FolderPage({ params }: PageProps) {
                 Start Recording
               </Button>
             </Link>
+            {/* Add from Uncategorized button - also shown in empty state */}
+            <div className="mt-6">
+              <AddFromUncategorizedButton folderId={folderId} />
+            </div>
           </div>
         )}
       </main>
