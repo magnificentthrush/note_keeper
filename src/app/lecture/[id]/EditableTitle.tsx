@@ -115,3 +115,5 @@ export default function EditableTitle({ lectureId, initialTitle }: EditableTitle
   );
 }
 
+
+

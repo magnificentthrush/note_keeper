@@ -15,6 +15,7 @@ import { Loader2, LayoutDashboard, User } from 'lucide-react';
 export default function RecordPage() {
   const [title, setTitle] = useState('');
   const [folderId, setFolderId] = useState<string | null>(null);
+  const [isLockedFromUrl, setIsLockedFromUrl] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -26,6 +27,7 @@ export default function RecordPage() {
     const urlFolderId = searchParams.get('folderId');
     if (urlFolderId) {
       setFolderId(urlFolderId);
+      setIsLockedFromUrl(true); // Lock the folder selection when coming from URL
     }
   }, [searchParams]);
 
@@ -158,6 +160,7 @@ export default function RecordPage() {
             <FolderSelector
               selectedFolderId={folderId}
               onFolderChange={setFolderId}
+              readOnly={isLockedFromUrl}
             />
           </Card>
 

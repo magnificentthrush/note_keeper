@@ -1,25 +1,50 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FolderOpen, ChevronDown, Plus, Loader2, Check } from 'lucide-react';
+import { FolderOpen, ChevronDown, Plus, Loader2, Check, Lock } from 'lucide-react';
 import { Folder } from '@/lib/types';
 
 interface FolderSelectorProps {
   selectedFolderId: string | null;
   onFolderChange: (folderId: string | null) => void;
+  readOnly?: boolean;
 }
 
-export default function FolderSelector({ selectedFolderId, onFolderChange }: FolderSelectorProps) {
+export default function FolderSelector({ selectedFolderId, onFolderChange, readOnly = false }: FolderSelectorProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
 
   useEffect(() => {
-    fetchFolders();
-  }, []);
+    if (readOnly && selectedFolderId) {
+      // In read-only mode, only fetch the specific folder
+      fetchSingleFolder(selectedFolderId);
+    } else {
+      // Normal mode: fetch all folders
+      fetchFolders();
+    }
+  }, [readOnly, selectedFolderId]);
+
+  const fetchSingleFolder = async (folderId: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/folders?id=${folderId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.folder) {
+          setCurrentFolder(data.folder);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching folder:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchFolders = async () => {
     try {
@@ -62,7 +87,30 @@ export default function FolderSelector({ selectedFolderId, onFolderChange }: Fol
   };
 
   const selectedFolder = folders.find(f => f.id === selectedFolderId);
+  const displayFolder = readOnly ? currentFolder : selectedFolder;
 
+  // Read-only mode: show static folder name
+  if (readOnly) {
+    return (
+      <div>
+        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+          Course / Folder
+        </label>
+        <div className="w-full flex items-center gap-3 px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg">
+          <FolderOpen className="w-5 h-5 text-[var(--warning)] flex-shrink-0" />
+          <span className={displayFolder ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}>
+            {isLoading ? 'Loading...' : displayFolder?.name || 'No folder'}
+          </span>
+          <Lock className="w-4 h-4 text-[var(--text-muted)] ml-auto flex-shrink-0" />
+        </div>
+        <p className="text-xs text-[var(--text-muted)] mt-2">
+          Recording will be added to this folder
+        </p>
+      </div>
+    );
+  }
+
+  // Normal mode: show dropdown selector
   return (
     <div className="relative">
       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
@@ -176,4 +224,6 @@ export default function FolderSelector({ selectedFolderId, onFolderChange }: Fol
     </div>
   );
 }
+
+
 

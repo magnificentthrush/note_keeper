@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 
-// GET /api/folders - Get all folders for the current user
-export async function GET() {
+// GET /api/folders - Get all folders for the current user, or a single folder by id
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createServiceClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -11,7 +11,32 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get folders with lecture count
+    // Check if requesting a single folder by id
+    const { searchParams } = new URL(request.url);
+    const folderId = searchParams.get('id');
+
+    if (folderId) {
+      // Fetch single folder
+      const { data: folder, error } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('id', folderId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching folder:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
+      if (!folder) {
+        return NextResponse.json({ error: 'Folder not found' }, { status: 404 });
+      }
+
+      return NextResponse.json({ folder });
+    }
+
+    // Get all folders with lecture count
     const { data: folders, error } = await supabase
       .from('folders')
       .select(`
@@ -168,4 +193,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+
 

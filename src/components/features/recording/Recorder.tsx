@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, Pause, Play, Square, Pin, Clock } from 'lucide-react';
+import { Mic, Pause, Play, Square, Pin, Clock, X } from 'lucide-react';
 import { Keypoint } from '@/lib/types';
 import KeypointInput from './KeypointInput';
+import AbortConfirmationDialog from './AbortConfirmationDialog';
 
 interface RecorderProps {
   onRecordingComplete: (audioBlob: Blob, keypoints: Keypoint[]) => void;
@@ -24,11 +25,13 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
   const [showKeypointModal, setShowKeypointModal] = useState(false);
   const [currentTimestamp, setCurrentTimestamp] = useState(0);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [showAbortDialog, setShowAbortDialog] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const isAbortingRef = useRef<boolean>(false);
 
   useEffect(() => {
     return () => {
@@ -47,6 +50,9 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
 
   const startRecording = async () => {
     try {
+      // Reset abort flag at the start of a new recording
+      isAbortingRef.current = false;
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } 
       });
@@ -62,11 +68,17 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
       };
 
       mediaRecorder.onstop = () => {
-        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-        onRecordingComplete(audioBlob, keypoints);
-        stream.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
+        // Only call onRecordingComplete if this is not an abort
+        if (!isAbortingRef.current) {
+          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+          onRecordingComplete(audioBlob, keypoints);
+        }
+        // Stop stream tracks if they still exist
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
       };
 
       mediaRecorder.start(1000);
@@ -98,11 +110,72 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      isAbortingRef.current = false; // This is a normal stop, not an abort
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
       if (timerRef.current) clearInterval(timerRef.current);
     }
+  };
+
+  const abortRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      // Set abort flag to prevent onRecordingComplete from being called
+      isAbortingRef.current = true;
+      
+      // Stop the timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      // Remove the onstop handler to prevent any callbacks
+      mediaRecorderRef.current.onstop = null;
+
+      // Stop the MediaRecorder
+      try {
+        if (mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch (error) {
+        console.error('Error stopping MediaRecorder:', error);
+      }
+
+      // Stop all audio tracks immediately
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+
+      // Clear audio chunks
+      audioChunksRef.current = [];
+      
+      // Clear the MediaRecorder reference
+      mediaRecorderRef.current = null;
+
+      // Reset all state
+      setIsRecording(false);
+      setIsPaused(false);
+      setElapsedTime(0);
+      setKeypoints([]);
+      setShowKeypointModal(false);
+      setCurrentTimestamp(0);
+      
+      // Close dialog
+      setShowAbortDialog(false);
+    }
+  };
+
+  const handleAbortClick = () => {
+    setShowAbortDialog(true);
+  };
+
+  const handleAbortConfirm = () => {
+    abortRecording();
+  };
+
+  const handleAbortCancel = () => {
+    setShowAbortDialog(false);
   };
 
   const handleAddKeypoint = useCallback(() => {
@@ -179,10 +252,22 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
         <button
           onClick={handleAddKeypoint}
           disabled={isPaused}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent-light)] font-medium rounded-lg transition-fast disabled:opacity-50 mb-10"
+          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)]/10 hover:bg-[var(--accent)]/20 border border-[var(--accent)]/30 text-[var(--accent-light)] font-medium rounded-lg transition-fast disabled:opacity-50 mb-6"
         >
           <Pin className="w-4 h-4" />
           Add Key Point
+        </button>
+      )}
+
+      {/* Abort button */}
+      {isRecording && (
+        <button
+          onClick={handleAbortClick}
+          disabled={isUploading}
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--error)]/10 hover:bg-[var(--error)]/20 border border-[var(--error)]/30 text-[var(--error)] font-medium rounded-lg transition-fast disabled:opacity-50 mb-10"
+        >
+          <X className="w-4 h-4" />
+          Abort Recording
         </button>
       )}
 
@@ -211,6 +296,14 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
           timestamp={currentTimestamp}
           onSubmit={handleKeypointSubmit}
           onCancel={() => setShowKeypointModal(false)}
+        />
+      )}
+
+      {/* Abort confirmation dialog */}
+      {showAbortDialog && (
+        <AbortConfirmationDialog
+          onConfirm={handleAbortConfirm}
+          onCancel={handleAbortCancel}
         />
       )}
     </div>

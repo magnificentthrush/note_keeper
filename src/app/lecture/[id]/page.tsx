@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Clock, Pin, Loader2, AlertCircle, RefreshCw, FileText } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
-import NoteRenderer from '@/components/features/lecture/NoteRenderer';
+import LectureContentToggle from '@/components/features/lecture/LectureContentToggle';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -117,7 +117,7 @@ export default async function LecturePage({ params }: PageProps) {
           )}
 
           {/* Completed */}
-          {typedLecture.status === 'completed' && typedLecture.final_notes && (
+          {typedLecture.status === 'completed' && (typedLecture.final_notes || typedLecture.transcript_json) && (
             <div className="space-y-6">
               {/* Retry notice */}
               {needsRetry && (
@@ -155,10 +155,11 @@ export default async function LecturePage({ params }: PageProps) {
                 </Card>
               )}
 
-              {/* Notes */}
-              <Card className="p-8">
-                <NoteRenderer content={typedLecture.final_notes} />
-              </Card>
+              {/* Notes and Transcript Toggle */}
+              <LectureContentToggle
+                notes={typedLecture.final_notes}
+                transcript={typedLecture.transcript_json}
+              />
             </div>
           )}
 
