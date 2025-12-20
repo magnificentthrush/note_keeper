@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Mic, Sparkles, FileText, ArrowRight, Play } from 'lucide-react';
+import { Mic, Sparkles, FileText, ArrowRight, Play } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function HomePage() {
@@ -60,10 +61,14 @@ export default function HomePage() {
               transition={{ duration: 0.5 }}
               className="flex items-center gap-3"
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/50">
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-lg text-white">NoteKeeper</span>
+              <Image
+                src="/darkmode_logo.svg"
+                alt="NoteKeeper Logo"
+                width={62}
+                height={62}
+                className="w-[62px] h-[62px]"
+              />
+              <span className="text-2xl md:text-3xl font-black tracking-tight text-white" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
             </motion.div>
             
             <motion.div

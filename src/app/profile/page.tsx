@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { LogOut, User, FileText, Clock, Plus, LayoutDashboard, Edit2, Check, X } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -96,30 +97,63 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Profile</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">Manage your account</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm">
-                <LayoutDashboard className="w-4 h-4" />
-                Dashboard
-              </Button>
-            </Link>
-            <Link href="/record">
-              <Button variant="ghost" size="sm">
-                <Plus className="w-4 h-4" />
-                New Recording
-              </Button>
-            </Link>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <div className="flex items-center justify-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/darkmode_logo.svg"
+                alt="NoteKeeper Logo"
+                width={62}
+                height={62}
+                className="w-[62px] h-[62px]"
+              />
+              <span className="text-3xl md:text-4xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
+            </div>
+            {/* Desktop navigation */}
+            <div className="hidden md:flex items-center gap-4">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Button>
+              </Link>
+              <Link href="/record">
+                <Button variant="ghost" size="sm">
+                  <Plus className="w-4 h-4" />
+                  New Recording
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
+      {/* Mobile navigation - below header */}
+      <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Link href="/dashboard" className="flex-1">
+            <Button variant="ghost" size="sm" className="w-full justify-center">
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </Button>
+          </Link>
+          <Link href="/record" className="flex-1">
+            <Button variant="ghost" size="sm" className="w-full justify-center">
+              <Plus className="w-4 h-4" />
+              New Recording
+            </Button>
+          </Link>
+        </div>
+      </div>
+      {/* Page title - below navbar */}
+      <div className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Profile</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Manage your account</p>
+        </div>
+      </div>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-8 py-8 space-y-6">
+      <main className="max-w-2xl mx-auto px-4 md:px-8 py-8 space-y-6">
           {/* User info */}
           <Card className="p-6">
             <div className="flex items-start gap-4">

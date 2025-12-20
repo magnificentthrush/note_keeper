@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Plus, FileText, ArrowLeft } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import LectureCard from '@/components/features/lecture/LectureCard';
@@ -50,37 +51,66 @@ export default async function FolderPage({ params }: PageProps) {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <div className="flex items-center justify-between">
             <Link
               href="/dashboard"
-              className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center transition-all duration-200 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105"
+              className="w-9 h-9 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center transition-all duration-200 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 flex-shrink-0 md:mr-0 mr-auto"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div>
-              <EditableFolderName folderId={folderId} initialName={typedFolder.name} />
-              <p className="text-sm text-[var(--text-muted)] mt-1">
-                {lectureCount} lecture{lectureCount !== 1 ? 's' : ''}
-              </p>
+            <div className="flex items-center gap-3 md:gap-4 absolute left-1/2 -translate-x-1/2 md:relative md:left-0 md:translate-x-0">
+              <Image
+                src="/darkmode_logo.svg"
+                alt="NoteKeeper Logo"
+                width={62}
+                height={62}
+                className="w-[62px] h-[62px]"
+              />
+              <span className="text-2xl md:text-3xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/profile">
-              <Button variant="ghost" size="sm">
-                Profile
-              </Button>
-            </Link>
-            {/* New Recording button - hidden on mobile, shown on desktop */}
-            <Link href={`/record?folderId=${folderId}`} className="hidden md:block">
-              <Button>
-                <Plus className="w-4 h-4" />
-                New Recording
-              </Button>
-            </Link>
+            {/* Desktop navigation */}
+            <div className="hidden md:flex items-center gap-4">
+              <Link href="/profile">
+                <Button variant="ghost" size="sm">
+                  Profile
+                </Button>
+              </Link>
+              <Link href={`/record?folderId=${folderId}`}>
+                <Button>
+                  <Plus className="w-4 h-4" />
+                  New Recording
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
+      {/* Mobile navigation - below header */}
+      <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Link href="/profile" className="flex-1">
+            <Button variant="ghost" size="sm" className="w-full justify-center">
+              Profile
+            </Button>
+          </Link>
+          <Link href={`/record?folderId=${folderId}`} className="flex-1">
+            <Button size="sm" className="w-full justify-center">
+              <Plus className="w-4 h-4" />
+              New Recording
+            </Button>
+          </Link>
+        </div>
+      </div>
+      {/* Page title - below navbar */}
+      <div className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <EditableFolderName folderId={folderId} initialName={typedFolder.name} />
+          <p className="text-sm text-[var(--text-muted)] mt-1">
+            {lectureCount} lecture{lectureCount !== 1 ? 's' : ''}
+          </p>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">

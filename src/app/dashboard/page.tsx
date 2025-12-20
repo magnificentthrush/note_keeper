@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Suspense } from 'react';
 import { Plus, FileText, FolderOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -68,26 +69,51 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/profile">
-              <Button variant="ghost" size="sm">
-                Profile
-              </Button>
-            </Link>
-            {/* New Recording button - hidden on mobile, shown on desktop */}
-            <Link href="/record" className="hidden md:block">
-              <Button>
-                <Plus className="w-4 h-4" />
-                New Recording
-              </Button>
-            </Link>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <div className="flex items-center justify-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/darkmode_logo.svg"
+                alt="NoteKeeper Logo"
+                width={62}
+                height={62}
+                className="w-[62px] h-[62px]"
+              />
+              <span className="text-3xl md:text-4xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
+            </div>
+            {/* Desktop navigation */}
+            <div className="hidden md:flex items-center gap-4">
+              <Link href="/profile">
+                <Button variant="ghost" size="sm">
+                  Profile
+                </Button>
+              </Link>
+              <Link href="/record">
+                <Button>
+                  <Plus className="w-4 h-4" />
+                  New Recording
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
+      {/* Mobile navigation - below header */}
+      <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Link href="/profile" className="flex-1">
+            <Button variant="ghost" size="sm" className="w-full justify-center">
+              Profile
+            </Button>
+          </Link>
+          <Link href="/record" className="flex-1">
+            <Button size="sm" className="w-full justify-center">
+              <Plus className="w-4 h-4" />
+              New Recording
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">

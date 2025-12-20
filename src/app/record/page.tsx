@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Keypoint } from '@/lib/types';
 import Recorder from '@/components/features/recording/Recorder';
@@ -131,27 +132,60 @@ function RecordPageContent() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
       <header className="border-b border-[var(--border)] bg-[var(--bg-secondary)] sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg md:text-2xl font-bold text-[var(--text-primary)]">New Recording</h1>
-            <p className="hidden md:block text-sm text-[var(--text-muted)] mt-1">Record a lecture and let AI generate notes</p>
-          </div>
-          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-            <Link href="/dashboard">
-              <Button variant="ghost" size="sm" className="px-2 md:px-3">
-                <LayoutDashboard className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Dashboard</span>
-              </Button>
-            </Link>
-            <Link href="/profile">
-              <Button variant="ghost" size="sm" className="px-2 md:px-3">
-                <User className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">Profile</span>
-              </Button>
-            </Link>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 md:py-4">
+          <div className="flex items-center justify-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Image
+                src="/darkmode_logo.svg"
+                alt="NoteKeeper Logo"
+                width={62}
+                height={62}
+                className="w-[62px] h-[62px]"
+              />
+              <span className="text-2xl md:text-3xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
+            </div>
+            {/* Desktop navigation */}
+            <div className="hidden md:flex items-center gap-4 flex-shrink-0">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Button>
+              </Link>
+              <Link href="/profile">
+                <Button variant="ghost" size="sm">
+                  <User className="w-4 h-4" />
+                  Profile
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
+      {/* Mobile navigation - below header */}
+      <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Link href="/dashboard" className="flex-1">
+            <Button variant="ghost" size="sm" className="w-full justify-center">
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </Button>
+          </Link>
+          <Link href="/profile" className="flex-1">
+            <Button variant="ghost" size="sm" className="w-full justify-center">
+              <User className="w-4 h-4" />
+              Profile
+            </Button>
+          </Link>
+        </div>
+      </div>
+      {/* Page title - below navbar */}
+      <div className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">New Recording</h1>
+          <p className="text-sm text-[var(--text-muted)] mt-1">Record a lecture and let AI generate notes</p>
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 md:px-8 py-8">

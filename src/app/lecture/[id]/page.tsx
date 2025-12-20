@@ -65,8 +65,6 @@ export default async function LecturePage({ params }: PageProps) {
       <main className="pl-64">
         <Header
           backHref="/dashboard"
-          title={<EditableTitle lectureId={id} initialTitle={typedLecture.title || 'Untitled Lecture'} />}
-          subtitle={formatDate(typedLecture.created_at)}
           actions={
             typedLecture.status === 'completed' && (
               <Badge
@@ -77,6 +75,13 @@ export default async function LecturePage({ params }: PageProps) {
             )
           }
         />
+        {/* Page title - below header */}
+        <div className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+          <div className="px-8 py-4">
+            <EditableTitle lectureId={id} initialTitle={typedLecture.title || 'Untitled Lecture'} />
+            <p className="text-sm text-[var(--text-muted)] mt-1">{formatDate(typedLecture.created_at)}</p>
+          </div>
+        </div>
 
         <div className="p-8 max-w-4xl mx-auto">
           {/* Processing */}

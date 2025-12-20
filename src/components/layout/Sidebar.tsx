@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Mic, User, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Mic, User } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,11 +19,15 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-[var(--border)]">
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dark)] flex items-center justify-center shadow-lg shadow-[var(--accent)]/20">
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
+          <Image
+            src="/darkmode_logo.svg"
+            alt="NoteKeeper Logo"
+            width={62}
+            height={62}
+            className="w-[62px] h-[62px]"
+          />
           <div>
-            <span className="font-bold text-[var(--text-primary)] block">NoteKeeper</span>
+            <span className="text-xl font-black tracking-tight text-[var(--text-primary)] block" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
             <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">AI Notes</span>
           </div>
         </Link>

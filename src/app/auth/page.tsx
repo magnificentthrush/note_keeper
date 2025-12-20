@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
-import { BookOpen, Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function AuthPage() {
@@ -58,10 +59,14 @@ export default function AuthPage() {
       <div className="hidden lg:flex lg:w-1/2 xl:w-2/5 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex-col justify-between p-12">
         <div>
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-[var(--text-primary)]">NoteKeeper</span>
+            <Image
+              src="/darkmode_logo.svg"
+              alt="NoteKeeper Logo"
+              width={62}
+              height={62}
+              className="w-[62px] h-[62px]"
+            />
+            <span className="text-3xl md:text-4xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
           </div>
 
           <h1 className="text-4xl font-bold text-[var(--text-primary)] leading-tight mb-4">
@@ -108,10 +113,14 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10 justify-center">
-            <div className="w-10 h-10 rounded-lg bg-[var(--accent)] flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-semibold text-[var(--text-primary)]">NoteKeeper</span>
+            <Image
+              src="/darkmode_logo.svg"
+              alt="NoteKeeper Logo"
+              width={62}
+              height={62}
+              className="w-[62px] h-[62px]"
+            />
+            <span className="text-3xl md:text-4xl font-black tracking-tight text-[var(--text-primary)]" style={{ fontFamily: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', letterSpacing: '-0.02em' }}>NoteKeeper</span>
           </div>
 
           <div className="text-center mb-8">
