@@ -21,6 +21,8 @@ export default function RefreshButton({ lectureId, canRetry = false }: RefreshBu
   const handleRetry = async () => {
     setIsRetrying(true);
     try {
+      // Re-process the lecture using the existing API
+      // This will re-generate notes from the saved transcript
       const response = await fetch('/api/process-lecture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,6 +32,7 @@ export default function RefreshButton({ lectureId, canRetry = false }: RefreshBu
       if (!response.ok) {
         console.error('Retry failed');
       }
+
       router.refresh();
     } catch (error) {
       console.error('Retry error:', error);

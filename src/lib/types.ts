@@ -23,6 +23,7 @@ export interface Lecture {
   final_notes: string | null;
   status: 'recording' | 'processing' | 'completed' | 'error';
   created_at: string;
+  soniox_job_id?: string | null;
 }
 
 export interface TranscriptUtterance {

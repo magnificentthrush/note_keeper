@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Clock, Pin, Loader2, AlertCircle, RefreshCw, FileText } from 'lucide-react';
+import { Clock, Pin, AlertCircle, RefreshCw, FileText } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import LectureContentToggle from '@/components/features/lecture/LectureContentToggle';
@@ -11,6 +11,7 @@ import Badge from '@/components/ui/Badge';
 import { Lecture, Keypoint } from '@/lib/types';
 import RefreshButton from './RefreshButton';
 import EditableTitle from './EditableTitle';
+import ProcessingStatus from './ProcessingStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,20 +85,12 @@ export default async function LecturePage({ params }: PageProps) {
         </div>
 
         <div className="p-8 max-w-4xl mx-auto">
-          {/* Processing */}
+          {/* Processing - with auto-polling */}
           {typedLecture.status === 'processing' && (
-            <Card className="p-12 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--accent)]/10 flex items-center justify-center mx-auto mb-6">
-                <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin" />
-              </div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-                Processing your lecture
-              </h2>
-              <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-                We&apos;re transcribing your audio and generating detailed study notes. This usually takes a few minutes.
-              </p>
-              <RefreshButton lectureId={id} />
-            </Card>
+            <ProcessingStatus
+              lectureId={id}
+              sonioxJobId={typedLecture.soniox_job_id}
+            />
           )}
 
           {/* Error */}

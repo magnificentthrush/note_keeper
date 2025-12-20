@@ -94,24 +94,29 @@ function RecordPageContent() {
         throw new Error(`Database error: ${insertError.message}`);
       }
 
-      setUploadStatus('Processing lecture with AI...');
+      setUploadStatus('Starting transcription...');
 
-      // Process with AI
-      const processResponse = await fetch('/api/process-lecture', {
+      // Start Soniox transcription (async - returns immediately)
+      // Pass audioUrl directly to the start route
+      const startResponse = await fetch('/api/soniox/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lectureId,
-          audioUrl,
-          keypoints: keypoints.map(kp => ({ timestamp: kp.timestamp, note: kp.note })),
+        body: JSON.stringify({ 
+          audioUrl: audioUrl,  // Pass the audio URL
+          lectureId: lectureId // Also pass lectureId to update database
         }),
       });
 
-      if (!processResponse.ok) {
-        const error = await processResponse.json();
-        console.error('Processing error:', error);
+      if (!startResponse.ok) {
+        const error = await startResponse.json();
+        console.error('Transcription start error:', error);
+        // Log error but don't throw - still redirect to lecture page which will handle status
+      } else {
+        const startData = await startResponse.json();
+        console.log('✅ Transcription started successfully:', startData.debug);
       }
 
+      // Redirect to lecture page - it will poll for transcription status
       router.push(`/lecture/${lectureId}`);
     } catch (error) {
       console.error('Error:', error);

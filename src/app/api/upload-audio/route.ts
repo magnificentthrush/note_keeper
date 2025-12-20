@@ -39,14 +39,19 @@ export async function POST(request: NextRequest) {
     // Use service role client to upload (bypasses RLS)
     const serviceClient = await createServiceClient();
     // Determine file extension from MIME type
-    let fileExt = 'webm';
-    if (file.type.includes('mp4')) {
+    // Check exact matches first, then fallback to includes
+    let fileExt = 'webm'; // Default fallback
+    const mimeType = file.type.toLowerCase();
+    
+    if (mimeType === 'audio/mp4' || mimeType.includes('mp4')) {
       fileExt = 'mp4';
-    } else if (file.type.includes('ogg')) {
+    } else if (mimeType.includes('ogg')) {
       fileExt = 'ogg';
-    } else if (file.type.includes('webm')) {
+    } else if (mimeType.includes('webm')) {
       fileExt = 'webm';
     }
+    
+    console.log('📁 File MIME type:', file.type, '→ Extension:', fileExt);
     const fileName = `${userId}/${lectureId}.${fileExt}`;
 
     console.log('Uploading via service client:', fileName, 'Size:', file.size);

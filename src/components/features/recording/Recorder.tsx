@@ -5,6 +5,7 @@ import { Mic, Pause, Play, Square, Pin, Clock, X } from 'lucide-react';
 import { Keypoint } from '@/lib/types';
 import KeypointInput from './KeypointInput';
 import AbortConfirmationDialog from './AbortConfirmationDialog';
+import fixWebmDuration from 'fix-webm-duration';
 
 interface RecorderProps {
   onRecordingComplete: (audioBlob: Blob, keypoints: Keypoint[]) => void;
@@ -32,6 +33,8 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isAbortingRef = useRef<boolean>(false);
+  const selectedMimeTypeRef = useRef<string>('audio/webm'); // Track selected mimeType
+  const startTimeRef = useRef<number>(0); // Track recording start time for duration calculation
 
   useEffect(() => {
     return () => {
@@ -41,10 +44,21 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
   }, []);
 
   const getSupportedMimeType = (): string => {
-    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg'];
+    // Prioritize audio/mp4 first for better metadata compatibility with Soniox
+    const types = [
+      'audio/mp4',             // Best for metadata compatibility (duration, etc.)
+      'audio/webm;codecs=opus', // Standard WebM with Opus codec
+      'audio/webm',            // Fallback WebM
+      'audio/ogg;codecs=opus', // OGG with Opus
+      'audio/ogg',             // Basic OGG
+    ];
     for (const type of types) {
-      if (MediaRecorder.isTypeSupported(type)) return type;
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('🎙️ Selected audio format:', type);
+        return type;
+      }
     }
+    console.warn('⚠️ No preferred format supported, using default audio/webm');
     return 'audio/webm';
   };
 
@@ -59,9 +73,11 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
       
       streamRef.current = stream;
       const mimeType = getSupportedMimeType();
+      selectedMimeTypeRef.current = mimeType; // Store the selected mimeType
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      startTimeRef.current = Date.now(); // Record the start time
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
@@ -70,9 +86,32 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
       mediaRecorder.onstop = () => {
         // Only call onRecordingComplete if this is not an abort
         if (!isAbortingRef.current) {
-          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          onRecordingComplete(audioBlob, keypoints);
+          // Use the stored mimeType (same one used when creating MediaRecorder)
+          const mimeType = selectedMimeTypeRef.current || mediaRecorderRef.current?.mimeType || 'audio/webm';
+          console.log('🎙️ Creating audio blob with mimeType:', mimeType);
+          
+          // Calculate duration in milliseconds
+          const duration = Date.now() - startTimeRef.current;
+          console.log('⏱️ Recording duration:', duration, 'ms');
+          
+          // Check if we need to fix WebM duration
+          const isWebm = mimeType.includes('webm');
+          
+          if (isWebm) {
+            // Create the initial "buggy" blob
+            const buggyBlob = new Blob(audioChunksRef.current, { type: mimeType });
+            console.log('🔧 Fixing WebM duration metadata...');
+            
+            // Fix the WebM duration metadata
+            fixWebmDuration(buggyBlob, duration, (fixedBlob) => {
+              console.log('✅ WebM duration fixed, using fixed blob');
+              onRecordingComplete(fixedBlob, keypoints);
+            });
+          } else {
+            // For non-WebM formats (like MP4), use the blob directly
+            const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+            onRecordingComplete(audioBlob, keypoints);
+          }
         }
         // Stop stream tracks if they still exist
         if (streamRef.current) {
@@ -160,6 +199,7 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
       setKeypoints([]);
       setShowKeypointModal(false);
       setCurrentTimestamp(0);
+      startTimeRef.current = 0; // Reset start time
       
       // Close dialog
       setShowAbortDialog(false);
