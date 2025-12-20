@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { BookOpen, Mail, Lock } from 'lucide-react';
+import { BookOpen, Mail, Lock, User } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +30,12 @@ export default function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              full_name: name.trim() || null,
+            },
+          },
         });
         if (error) throw error;
         setError('Check your email to confirm your account');
@@ -118,6 +124,20 @@ export default function AuthPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name field - only shown during sign up */}
+            {!isLogin && (
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name (optional)"
+                  className="w-full h-12 pl-11 pr-4 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
+                />
+              </div>
+            )}
+
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
               <input
@@ -165,6 +185,7 @@ export default function AuthPage() {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError(null);
+                setName('');
               }}
               className="text-[var(--accent)] hover:text-[var(--accent-light)] font-medium"
             >

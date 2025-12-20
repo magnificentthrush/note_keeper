@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { LogOut, User, FileText, Clock, Plus, LayoutDashboard } from 'lucide-react';
+import { LogOut, User, FileText, Clock, Plus, LayoutDashboard, Edit2, Check, X } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 
 export default function ProfilePage() {
   const [email, setEmail] = useState<string | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [stats, setStats] = useState({ total: 0, completed: 0 });
@@ -24,6 +28,7 @@ export default function ProfilePage() {
         return;
       }
       setEmail(user.email || null);
+      setName(user.user_metadata?.full_name || null);
 
       // Get lecture stats
       const { data: lectures } = await supabase
@@ -42,6 +47,35 @@ export default function ProfilePage() {
     };
     loadData();
   }, [supabase, router]);
+
+  const handleStartEditName = () => {
+    setEditedName(name || '');
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    setEditedName('');
+  };
+
+  const handleSaveName = async () => {
+    setIsSavingName(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: editedName.trim() || null }
+      });
+
+      if (error) throw error;
+
+      setName(editedName.trim() || null);
+      setIsEditingName(false);
+    } catch (error) {
+      console.error('Error updating name:', error);
+      alert('Failed to update name. Please try again.');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -88,13 +122,59 @@ export default function ProfilePage() {
       <main className="max-w-2xl mx-auto px-8 py-8 space-y-6">
           {/* User info */}
           <Card className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-[var(--accent)]/10 flex items-center justify-center">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-full bg-[var(--accent)]/10 flex items-center justify-center flex-shrink-0">
                 <User className="w-8 h-8 text-[var(--accent)]" />
               </div>
-              <div>
-                <p className="text-sm text-[var(--text-muted)] mb-1">Signed in as</p>
-                <p className="text-lg font-medium text-[var(--text-primary)]">{email}</p>
+              <div className="flex-1 min-w-0">
+                {/* Name section */}
+                {isEditingName ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="flex-1 px-3 py-1.5 text-lg font-medium bg-[var(--bg-primary)] border border-[var(--accent)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/50 text-[var(--text-primary)]"
+                      autoFocus
+                      disabled={isSavingName}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveName();
+                        if (e.key === 'Escape') handleCancelEditName();
+                      }}
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      disabled={isSavingName}
+                      className="p-1.5 text-[var(--success)] hover:bg-[var(--success)]/10 rounded-lg transition-colors disabled:opacity-50"
+                      title="Save"
+                    >
+                      <Check className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleCancelEditName}
+                      disabled={isSavingName}
+                      className="p-1.5 text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] rounded-lg transition-colors"
+                      title="Cancel"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-lg font-medium text-[var(--text-primary)]">
+                      {name || <span className="text-[var(--text-muted)] italic">No name set</span>}
+                    </p>
+                    <button
+                      onClick={handleStartEditName}
+                      className="p-1 text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--accent)]/10 rounded-lg transition-colors"
+                      title="Edit name"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                <p className="text-sm text-[var(--text-muted)]">{email}</p>
               </div>
             </div>
           </Card>
