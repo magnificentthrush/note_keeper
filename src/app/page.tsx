@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mic, Sparkles, FileText, ArrowRight, Play } from 'lucide-react';
+import { Mic, Sparkles, FileText, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function HomePage() {
@@ -136,11 +136,6 @@ export default function HomePage() {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </Link>
-          
-          <button className="px-8 py-4 bg-white/5 backdrop-blur-sm border border-white/10 text-white font-semibold rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center gap-2 text-lg">
-            <Play className="w-5 h-5" />
-            Watch Demo
-          </button>
         </motion.div>
       </div>
 
