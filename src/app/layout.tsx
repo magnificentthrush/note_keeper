@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import FloatingFeedbackButton from "@/components/ui/FloatingFeedbackButton";
 
 export const metadata: Metadata = {
   title: "NoteKeeper - AI Lecture Notes",
@@ -24,6 +25,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased min-h-screen bg-[var(--background)]" suppressHydrationWarning>
         {children}
+        <FloatingFeedbackButton />
       </body>
     </html>
   );
