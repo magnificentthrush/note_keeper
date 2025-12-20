@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
@@ -12,7 +12,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { Loader2, LayoutDashboard, User } from 'lucide-react';
 
-export default function RecordPage() {
+function RecordPageContent() {
   const [title, setTitle] = useState('');
   const [folderId, setFolderId] = useState<string | null>(null);
   const [isLockedFromUrl, setIsLockedFromUrl] = useState(false);
@@ -187,5 +187,17 @@ export default function RecordPage() {
           </Card>
       </main>
     </div>
+  );
+}
+
+export default function RecordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--accent)]" />
+      </div>
+    }>
+      <RecordPageContent />
+    </Suspense>
   );
 }
