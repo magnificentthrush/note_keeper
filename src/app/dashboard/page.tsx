@@ -175,9 +175,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
                       No courses yet
                     </h2>
-                    <p className="text-[var(--text-secondary)] mb-4 max-w-md">
+                    <p className="text-[var(--text-secondary)] mb-6 max-w-md">
                       Create a course folder to organize your lectures.
                     </p>
+                    <div className="w-full max-w-md">
+                      <CreateFolderButton />
+                    </div>
                   </div>
                 )}
               </section>
