@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -6,6 +7,54 @@ export const dynamic = 'force-dynamic';
 // Documentation: https://soniox.com/docs/stt/api-reference
 const SONIOX_API_BASE_URL = 'https://api.soniox.com';
 const SONIOX_API_ENDPOINT = '/v1/transcriptions';
+
+// Helper function to translate any non-English text to English using Gemini
+async function translateToEnglish(text: string): Promise<string> {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn('⚠️ No Gemini API key, returning original text');
+    return text;
+  }
+
+  // Check if text contains non-ASCII characters (likely Urdu/Arabic script)
+  const hasNonEnglish = /[^\x00-\x7F]/.test(text);
+  if (!hasNonEnglish) {
+    console.log('✅ Text appears to be English-only, no translation needed');
+    return text;
+  }
+
+  console.log('🔄 Translating non-English text to English...');
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+    const prompt = `You are a translator. Translate the following transcript to English ONLY. 
+The transcript contains mixed Urdu and English. 
+- Keep any English parts exactly as they are
+- Translate ALL Urdu/non-English text to natural English
+- Do NOT add any commentary, notes, or explanations
+- Return ONLY the translated transcript text
+- Preserve the flow and meaning of the original
+
+Transcript to translate:
+${text}`;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const translatedText = response.text();
+
+    if (translatedText && translatedText.trim().length > 0) {
+      console.log('✅ Translation completed successfully');
+      return translatedText.trim();
+    }
+  } catch (error) {
+    console.error('❌ Translation failed:', error);
+  }
+
+  // Return original if translation fails
+  return text;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,6 +127,7 @@ export async function GET(request: NextRequest) {
 
     const data = await sonioxResponse.json();
     console.log('✅ Soniox Status Data:', JSON.stringify(data, null, 2));
+    console.log('📋 Soniox Response Keys:', Object.keys(data));
 
     // Check status
     const sonioxStatus = data.status?.toLowerCase();
@@ -101,41 +151,66 @@ export async function GET(request: NextRequest) {
     }
 
     if (sonioxStatus === 'completed') {
-      // Status is completed - fetch the actual transcript
-      const transcriptUrl = `${SONIOX_API_BASE_URL}${SONIOX_API_ENDPOINT}/${transcriptionId}/transcript`;
-      console.log('📤 Fetching transcript from:', transcriptUrl);
+      let finalTranscript = '';
 
-      const transcriptResponse = await fetch(transcriptUrl, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${sonioxApiKey}`,
-        },
-      });
-
-      if (!transcriptResponse.ok) {
-        console.error('❌ Failed to fetch transcript:', transcriptResponse.status);
-        return NextResponse.json({
-          status: 'error',
-          error: 'Failed to fetch transcript',
-        }, { status: transcriptResponse.status });
-      }
-
-      const transcriptData = await transcriptResponse.json();
-      console.log('✅ Transcript Data received');
-      console.log('📋 Transcript Data keys:', Object.keys(transcriptData));
-      console.log('📋 Full transcript data structure:', JSON.stringify(transcriptData, null, 2).substring(0, 2000));
-
-      // Prefer English translation; fallback to original text only if translation missing
-      let finalTranscript = transcriptData.text || '';
-
-      if (Array.isArray(transcriptData.translations) && transcriptData.translations.length > 0) {
-        const engTranslation = transcriptData.translations.find(
+      // 1) Try translations from status response first (preferred)
+      if (data.translations && Array.isArray(data.translations) && data.translations.length > 0) {
+        console.log(`Found ${data.translations.length} translations in status response`);
+        const eng = data.translations.find(
           (t: { target_language?: string }) => t.target_language === 'en'
         );
-        if (engTranslation?.text) {
-          finalTranscript = engTranslation.text;
-          console.log('✅ Using English translation from translations array');
+        if (eng) {
+          console.log('✅ Using English Translation from Status Object');
+          finalTranscript = eng.text;
         }
+      } else {
+        console.log("⚠️ No 'translations' field found in status response");
+      }
+
+      // 2) Fallback: fetch raw transcript only if no translation found
+      if (!finalTranscript) {
+        console.log('⚠️ No translation found, fetching raw transcript...');
+        const transcriptUrl = `${SONIOX_API_BASE_URL}${SONIOX_API_ENDPOINT}/${transcriptionId}/transcript`;
+        console.log('📤 Fetching transcript from:', transcriptUrl);
+
+        const transcriptResponse = await fetch(transcriptUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${sonioxApiKey}`,
+          },
+        });
+
+        if (!transcriptResponse.ok) {
+          console.error('❌ Failed to fetch transcript:', transcriptResponse.status);
+          return NextResponse.json({
+            status: 'error',
+            error: 'Failed to fetch transcript',
+          }, { status: transcriptResponse.status });
+        }
+
+        const transcriptData = await transcriptResponse.json();
+        console.log('✅ Transcript Data received');
+        console.log('📋 Transcript Data keys:', Object.keys(transcriptData));
+
+        finalTranscript = transcriptData.text || '';
+
+        if (transcriptData.translations && Array.isArray(transcriptData.translations) && transcriptData.translations.length > 0) {
+          console.log(`Found ${transcriptData.translations.length} translations`);
+          const eng = transcriptData.translations.find(
+            (t: { target_language?: string }) => t.target_language === 'en'
+          );
+          if (eng) {
+            console.log('✅ Swapping original text for English translation (from transcript fetch)');
+            finalTranscript = eng.text;
+          }
+        } else {
+          console.log("⚠️ No 'translations' field found in transcript fetch response");
+        }
+      }
+
+      // Post-process: Translate any remaining non-English text to English using Gemini
+      if (finalTranscript) {
+        finalTranscript = await translateToEnglish(finalTranscript);
       }
 
       return NextResponse.json({
