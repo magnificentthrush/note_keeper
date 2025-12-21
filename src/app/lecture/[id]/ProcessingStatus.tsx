@@ -72,7 +72,7 @@ export default function ProcessingStatus({ lectureId, sonioxJobId }: ProcessingS
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             lectureId,
-            transcriptText: data.text, // Pass the text directly
+            transcriptText: data.transcript || data.text, // Use transcript field (or fallback to text for compatibility)
           }),
         });
 

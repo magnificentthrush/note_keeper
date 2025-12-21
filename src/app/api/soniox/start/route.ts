@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
         } catch {
           errorText = responseText || sonioxResponse.statusText;
         }
-      } catch (e) {
+      } catch {
         errorText = `HTTP ${sonioxResponse.status}: ${sonioxResponse.statusText}`;
       }
       

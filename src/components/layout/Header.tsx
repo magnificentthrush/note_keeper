@@ -4,15 +4,11 @@ import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 
 interface HeaderProps {
-  title?: string | ReactNode;
-  subtitle?: string;
   backHref?: string;
   actions?: ReactNode;
 }
 
-export default function Header({ title, subtitle, backHref, actions }: HeaderProps) {
-  const isStringTitle = typeof title === 'string';
-  
+export default function Header({ backHref, actions }: HeaderProps) {
   return (
     <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-sm sticky top-0 z-40">
       <div className="h-full px-4 md:px-8 flex items-center justify-between relative">

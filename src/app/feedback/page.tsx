@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
@@ -20,7 +19,6 @@ const feedbackTypes: { value: FeedbackType; label: string; icon: typeof Bug; des
 ];
 
 export default function FeedbackPage() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [name, setName] = useState('');

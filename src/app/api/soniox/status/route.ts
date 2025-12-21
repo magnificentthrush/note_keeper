@@ -7,45 +7,6 @@ export const dynamic = 'force-dynamic';
 const SONIOX_API_BASE_URL = 'https://api.soniox.com';
 const SONIOX_API_ENDPOINT = '/v1/transcriptions';
 
-// Helper function to process tokens into readable text
-// Based on renderTokens() from Soniox documentation
-function processTokens(tokens: Array<{
-  text: string;
-  speaker?: string | number;
-  language?: string;
-  translation_status?: string;
-}>): string {
-  const textParts: string[] = [];
-  let currentSpeaker: string | number | null = null;
-  let currentLanguage: string | null = null;
-
-  // Process all tokens in order
-  for (const token of tokens) {
-    let { text, speaker, language } = token;
-    const isTranslation = token.translation_status === 'translation';
-
-    // Speaker changed -> add a speaker tag
-    if (speaker !== undefined && speaker !== currentSpeaker) {
-      if (currentSpeaker !== null) textParts.push('\n\n');
-      currentSpeaker = speaker;
-      currentLanguage = null; // Reset language on speaker changes
-      textParts.push(`Speaker ${currentSpeaker}:`);
-    }
-
-    // Language changed -> add a language or translation tag
-    if (language !== undefined && language !== currentLanguage) {
-      currentLanguage = language;
-      const prefix = isTranslation ? '[Translation] ' : '';
-      textParts.push(`\n${prefix}[${currentLanguage}] `);
-      text = text.trimStart();
-    }
-
-    textParts.push(text);
-  }
-
-  return textParts.join('');
-}
-
 export async function GET(request: NextRequest) {
   try {
     // Get transcriptionId from query params (called jobId for compatibility)
@@ -93,7 +54,7 @@ export async function GET(request: NextRequest) {
         } catch {
           errorText = responseText || sonioxResponse.statusText;
         }
-      } catch (e) {
+      } catch {
         errorText = `HTTP ${sonioxResponse.status}: ${sonioxResponse.statusText}`;
       }
       
@@ -164,52 +125,22 @@ export async function GET(request: NextRequest) {
       console.log('📋 Transcript Data keys:', Object.keys(transcriptData));
       console.log('📋 Full transcript data structure:', JSON.stringify(transcriptData, null, 2).substring(0, 2000));
 
-      // When translation is enabled, Soniox returns translations array with English translation
-      // Priority: Use English translation; do NOT include original Urdu text
-      let finalTranscript = '';
-      
-      // 1) translations array (preferred)
+      // Prefer English translation; fallback to original text only if translation missing
+      let finalTranscript = transcriptData.text || '';
+
       if (Array.isArray(transcriptData.translations) && transcriptData.translations.length > 0) {
-        const englishTranslation = transcriptData.translations.find(
+        const engTranslation = transcriptData.translations.find(
           (t: { target_language?: string }) => t.target_language === 'en'
-        ) || transcriptData.translations[0];
-        
-        if (englishTranslation?.text) {
-          finalTranscript = englishTranslation.text;
+        );
+        if (engTranslation?.text) {
+          finalTranscript = engTranslation.text;
           console.log('✅ Using English translation from translations array');
         }
-      }
-      
-      // 2) translation object (alternate structure)
-      if (!finalTranscript && transcriptData.translation?.text) {
-        finalTranscript = transcriptData.translation.text;
-        console.log('✅ Using translation.text from translation object');
-      }
-      
-      // 3) tokens: use only translation tokens
-      if (!finalTranscript && Array.isArray(transcriptData.tokens)) {
-        const translationTokens = transcriptData.tokens.filter(
-          (t: { translation_status?: string }) => t.translation_status === 'translation'
-        );
-        if (translationTokens.length > 0) {
-          finalTranscript = translationTokens.map((t: { text: string }) => t.text).join('');
-          console.log('✅ Extracted English translation from translation tokens');
-        } else {
-          console.warn('⚠️ No translation tokens found; not using original text to avoid Urdu output');
-        }
-      }
-      
-      // 4) If still empty, return empty string to ensure no Urdu is returned
-      if (!finalTranscript) {
-        finalTranscript = '';
-        console.warn('⚠️ No English translation found; returning empty transcript to avoid Urdu output');
       }
 
       return NextResponse.json({
         status: 'completed',
-        text: finalTranscript,
-        // Also return raw tokens for potential future processing
-        tokens: transcriptData.tokens,
+        transcript: finalTranscript,
       });
     }
 

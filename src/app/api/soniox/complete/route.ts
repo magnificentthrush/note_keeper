@@ -52,25 +52,26 @@ async function generateNotesWithLLM(
   formattedTranscript: string,
   formattedKeypoints: string
 ): Promise<string> {
-  const systemPrompt = `You are a concise note-taker. Your job is to create structured, summarized notes ONLY from what the instructor actually said in the lecture transcript.
+  const systemPrompt = `You are an expert academic assistant. Create DETAILED, COMPREHENSIVE study notes from this transcript. Capture all specific examples, technical terms, and explanations. Do not summarize too heavily; preserve the depth of the original content.
 
 STRICT RULES:
-- **ONLY** summarize what the instructor actually said - DO NOT add explanations, context, or information not present in the transcript
-- DO NOT infer or expand on concepts beyond what was explicitly stated
-- Keep notes concise and to the point - avoid redundancy
+- **ONLY** include what the instructor actually said - DO NOT add external information
+- Capture ALL specific examples, definitions, technical terms, and explanations mentioned
+- Preserve the depth and detail of the original content - do NOT over-summarize
 - Use markdown formatting (headers for topics, bullet points for key points)
 - Organize content into clear hierarchical sections based on the transcript flow
 - If the transcript is unclear or audio quality was poor, note that briefly
 
 STRUCTURE:
 - Use ## for main topics/sections
+- Use ### for subtopics if needed
 - Use bullet points for key points within each section
-- Keep bullet points brief (1-2 sentences max per point)
+- Include specific details, examples, and explanations under each point
 - If user marked key points during recording, highlight them with: **🔖 USER NOTE: [note]**
 
-CRITICAL: Do not add any information, explanations, or context that was not explicitly stated by the instructor in the transcript. Only summarize and organize what was actually said.`;
+CRITICAL: Capture the full depth of the lecture content. Include all important details, examples, and explanations that the instructor provided.`;
 
-  const userPrompt = `Create concise, structured study notes from this lecture transcript. Only include information that the instructor actually said - do not add explanations or expand on concepts.
+  const userPrompt = `Create DETAILED, COMPREHENSIVE study notes from this lecture transcript. Capture all specific examples, technical terms, and explanations. Preserve the full depth of the content.
 
 ## ⭐ USER'S MARKED KEY POINTS:
 ${formattedKeypoints}
@@ -80,12 +81,13 @@ Find these timestamps in the transcript and include them in your notes with the 
 ## Lecture Transcript:
 ${formattedTranscript}
 
-Create structured notes that:
-- Summarize only what the instructor said (no additions or explanations)
-- Organize content into clear topics/sections using headers
-- Use bullet points for key points (keep each point concise)
+Create detailed notes that:
+- Capture ALL specific examples, definitions, and explanations mentioned
+- Organize content into clear topics/sections using headers and subheaders
+- Use bullet points with full detail (not just summaries)
 - Include the user's marked key points at the relevant sections
-- Maintain the original flow and order of topics from the transcript`;
+- Maintain the original flow and order of topics from the transcript
+- Preserve technical terms and specific details exactly as stated`;
 
   const hasGemini = !!process.env.GOOGLE_GEMINI_API_KEY;
 
@@ -94,14 +96,12 @@ Create structured notes that:
     console.log('Initializing Google AI...');
     const genAI = getGeminiClient();
 
-    // Use discovered working models (gemini-2.5-flash was found to work via test script)
+    // Paid quota available: prioritize high-quality 2.5 model, then fast 2.0 lite, then 1.5 fallback
     const modelsToTry = [
-      process.env.GEMINI_MODEL,   // User-specified model (highest priority)
-      'gemini-2.5-flash',         // Latest stable model (discovered via ListModels)
-      'gemini-2.5-flash-lite',    // Lighter version
-      'gemini-2.5-pro',           // Pro version
-      'gemini-flash-latest',      // Latest flash (fallback)
-      'gemini-pro-latest',        // Latest pro (fallback)
+      process.env.GEMINI_MODEL,    // User-specified model (highest priority)
+      'gemini-2.5-flash',          // Primary (high quality, paid quota)
+      'gemini-2.0-flash-lite',     // Backup (high speed)
+      'gemini-1.5-flash',          // Fallback
     ].filter(Boolean) as string[];
 
     let lastError: Error | null = null;
@@ -128,6 +128,9 @@ Create structured notes that:
         const errorMessage = modelError instanceof Error ? modelError.message : String(modelError);
         console.warn(`Model ${modelName} failed:`, errorMessage);
         lastError = modelError instanceof Error ? modelError : new Error(String(modelError));
+
+        // 2 second delay before trying the next model to avoid hammering rate limits (e.g., 429)
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         continue;
       }
     }
