@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     
     const body = await request.json();
-    const { name, email, feedback_type, subject, message, rating } = body;
+    const { name, email, feedback_type, subject, message, rating, willing_to_pay, not_willing_reason } = body;
 
     // Validate required fields
     if (!message || message.trim().length < 10) {
@@ -42,6 +42,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate: If user says no to paying, reason must be provided
+    if (willing_to_pay === false && (!not_willing_reason || not_willing_reason.trim().length === 0)) {
+      return NextResponse.json(
+        { error: 'Please provide a reason if you are not willing to pay' },
+        { status: 400 }
+      );
+    }
+
     // Insert feedback
     const { data, error } = await supabase
       .from('feedback')
@@ -53,6 +61,8 @@ export async function POST(request: NextRequest) {
         subject: subject?.trim() || null,
         message: message.trim(),
         rating: rating || null,
+        willing_to_pay: willing_to_pay !== undefined ? willing_to_pay : null,
+        not_willing_reason: willing_to_pay === false ? not_willing_reason?.trim() || null : null,
         status: 'new',
       })
       .select()

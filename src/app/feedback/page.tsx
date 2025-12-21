@@ -27,6 +27,8 @@ export default function FeedbackPage() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState<number | null>(null);
+  const [willingToPay, setWillingToPay] = useState<boolean | null>(null);
+  const [notWillingReason, setNotWillingReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +62,8 @@ export default function FeedbackPage() {
           subject: subject.trim() || null,
           message: message.trim(),
           rating,
+          willing_to_pay: willingToPay,
+          not_willing_reason: willingToPay === false ? notWillingReason.trim() || null : null,
         }),
       });
 
@@ -122,6 +126,8 @@ export default function FeedbackPage() {
                 setSubject('');
                 setRating(null);
                 setFeedbackType('general');
+                setWillingToPay(null);
+                setNotWillingReason('');
               }}>
                 Submit Another
               </Button>
@@ -287,13 +293,66 @@ export default function FeedbackPage() {
             </div>
           </Card>
 
+          {/* Pricing Question */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+              Would you be willing to pay for NoteKeeper?
+            </h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
+              We&apos;re considering a subscription model: <strong className="text-[var(--text-primary)]">Rs 300/month</strong>. 
+              Just record your lectures and get AI-generated notes instantly.
+            </p>
+            <div className="flex gap-4 mb-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setWillingToPay(true);
+                  setNotWillingReason('');
+                }}
+                className={`flex-1 p-4 rounded-lg border transition-all duration-200 ${
+                  willingToPay === true
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-[var(--text-muted)] text-[var(--text-primary)]'
+                }`}
+              >
+                <span className="font-medium">Yes</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWillingToPay(false)}
+                className={`flex-1 p-4 rounded-lg border transition-all duration-200 ${
+                  willingToPay === false
+                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]'
+                    : 'border-[var(--border)] bg-[var(--bg-secondary)] hover:border-[var(--text-muted)] text-[var(--text-primary)]'
+                }`}
+              >
+                <span className="font-medium">No</span>
+              </button>
+            </div>
+            {willingToPay === false && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Please tell us why <span className="text-[var(--error)]">*</span>
+                </label>
+                <textarea
+                  value={notWillingReason}
+                  onChange={(e) => setNotWillingReason(e.target.value)}
+                  placeholder="e.g., Too expensive, prefer one-time payment, need more features..."
+                  required
+                  rows={3}
+                  className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent resize-none"
+                />
+              </div>
+            )}
+          </Card>
+
           {/* Submit Button */}
           <Button
             type="submit"
             className="w-full"
             size="lg"
             isLoading={isSubmitting}
-            disabled={message.trim().length < 10}
+            disabled={message.trim().length < 10 || (willingToPay === false && !notWillingReason.trim())}
           >
             <Send className="w-5 h-5" />
             Submit Feedback
