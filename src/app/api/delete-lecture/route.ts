@@ -44,18 +44,33 @@ export async function DELETE(request: NextRequest) {
     // Delete audio file from storage if it exists
     if (lecture.audio_url) {
       try {
-        // Extract file path from URL
-        // Format: https://project.supabase.co/storage/v1/object/sign/lecture-audio/userId/lectureId.ext?token=...
-        // Or: https://project.supabase.co/storage/v1/object/public/lecture-audio/userId/lectureId.ext
-        const urlParts = lecture.audio_url.split('/');
-        const audioIndex = urlParts.findIndex((part: string) => part === 'lecture-audio');
+        let filePath: string;
         
-        if (audioIndex !== -1 && audioIndex < urlParts.length - 1) {
-          // Get the path after 'lecture-audio'
-          const pathParts = urlParts.slice(audioIndex + 1);
-          // Remove query params if present
-          const filePath = pathParts.join('/').split('?')[0];
+        // Check if audio_url is already a path (format: userId/lectureId.ext)
+        // or if it's a full URL (format: https://.../lecture-audio/userId/lectureId.ext?...)
+        if (lecture.audio_url.startsWith('http://') || lecture.audio_url.startsWith('https://')) {
+          // Extract file path from URL
+          // Format: https://project.supabase.co/storage/v1/object/sign/lecture-audio/userId/lectureId.ext?token=...
+          // Or: https://project.supabase.co/storage/v1/object/public/lecture-audio/userId/lectureId.ext
+          const urlParts = lecture.audio_url.split('/');
+          const audioIndex = urlParts.findIndex((part: string) => part === 'lecture-audio');
           
+          if (audioIndex !== -1 && audioIndex < urlParts.length - 1) {
+            // Get the path after 'lecture-audio'
+            const pathParts = urlParts.slice(audioIndex + 1);
+            // Remove query params if present
+            filePath = pathParts.join('/').split('?')[0];
+          } else {
+            // URL format doesn't match expected pattern, skip file deletion
+            console.warn('Unexpected audio_url format, skipping file deletion:', lecture.audio_url);
+            filePath = '';
+          }
+        } else {
+          // audio_url is already a path (direct storage path format)
+          filePath = lecture.audio_url;
+        }
+
+        if (filePath) {
           const serviceClient = await createServiceClient();
           const { error: deleteError } = await serviceClient.storage
             .from('lecture-audio')

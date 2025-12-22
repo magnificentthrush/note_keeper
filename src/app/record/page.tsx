@@ -54,38 +54,61 @@ function RecordPageContent() {
 
     try {
       const lectureId = crypto.randomUUID();
+      const supabase = createClient();
 
-      // Upload via API route
-      const formData = new FormData();
-      formData.append('file', audioBlob);
-      formData.append('userId', user.id);
-      formData.append('lectureId', lectureId);
-
-      const uploadResponse = await fetch('/api/upload-audio', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const error = await uploadResponse.json();
-        throw new Error(error.error || 'Upload failed');
+      // Determine file extension from Blob type
+      let fileExt = 'webm'; // Default fallback
+      const mimeType = audioBlob.type.toLowerCase();
+      
+      if (mimeType === 'audio/mp4' || mimeType.includes('mp4')) {
+        fileExt = 'mp4';
+      } else if (mimeType.includes('ogg')) {
+        fileExt = 'ogg';
+      } else if (mimeType.includes('webm')) {
+        fileExt = 'webm';
       }
 
-      const uploadResult = await uploadResponse.json();
-      const audioUrl = uploadResult.signedUrl || uploadResult.url;
+      const fileName = `${user.id}/${lectureId}.${fileExt}`;
+
+      // Upload directly to Supabase Storage (bypasses Vercel 4.5MB limit)
+      // RLS policies ensure users can only upload to their own folder
+      setUploadStatus('Uploading to storage...');
+      const { error: uploadError, data: uploadData } = await supabase.storage
+        .from('lecture-audio')
+        .upload(fileName, audioBlob, {
+          contentType: audioBlob.type,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      setUploadStatus('Getting signed URL...');
+
+      // Generate signed URL for Soniox (valid for 1 hour)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('lecture-audio')
+        .createSignedUrl(fileName, 3600); // 1 hour expiry
+
+      if (signedUrlError) {
+        throw new Error(`Failed to generate signed URL: ${signedUrlError.message}`);
+      }
+
+      const audioUrl = signedUrlData.signedUrl;
 
       setUploadStatus('Creating lecture record...');
 
       // Create lecture record with folder_id
-      const supabase = createClient();
+      // Store the file path, not the full URL (signed URLs expire)
       const { error: insertError } = await supabase
         .from('lectures')
         .insert({
           id: lectureId,
           user_id: user.id,
-          folder_id: folderId, // Include folder_id
+          folder_id: folderId,
           title: title || 'Untitled Lecture',
-          audio_url: uploadResult.url,
+          audio_url: fileName, // Store the path, signed URLs will be generated when needed
           user_keypoints: keypoints.map(kp => ({ timestamp: kp.timestamp, note: kp.note })),
           status: 'processing',
         });
@@ -97,12 +120,12 @@ function RecordPageContent() {
       setUploadStatus('Starting transcription...');
 
       // Start Soniox transcription (async - returns immediately)
-      // Pass audioUrl directly to the start route
+      // Pass audioUrl (signed URL) directly to the start route
       const startResponse = await fetch('/api/soniox/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          audioUrl: audioUrl,  // Pass the audio URL
+          audioUrl: audioUrl,  // Pass the signed URL
           lectureId: lectureId // Also pass lectureId to update database
         }),
       });
