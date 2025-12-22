@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.21.0",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.4",
+    "@vercel/analytics": "^1.6.1",
     "assemblyai": "^4.9.0",
     "fix-webm-duration": "^1.0.6",
     "framer-motion": "^12.23.25",
