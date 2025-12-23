@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { Keypoint, TranscriptResponse } from '@/lib/types';
+import { Keypoint, TranscriptResponse, FactCheckItem } from '@/lib/types';
 import {
   extractTitleFromNotes,
   formatKeypointsForPrompt,
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // mode === 'replace': overwrite final_notes and reset edited flag
-    let factChecks = [];
+    let factChecks: FactCheckItem[] = [];
     try {
       factChecks = await generateFactChecksWithGemini({ notes, transcriptText });
     } catch (e) {

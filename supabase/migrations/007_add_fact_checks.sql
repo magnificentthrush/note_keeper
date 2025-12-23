@@ -5,3 +5,4 @@ ADD COLUMN IF NOT EXISTS fact_checks JSONB;
 
 
 
+

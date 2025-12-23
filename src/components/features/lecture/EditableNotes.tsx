@@ -196,3 +196,4 @@ export default function EditableNotes({ lectureId, notes, notesEdited, aiNotes }
   );
 }
 
+
