@@ -73,7 +73,7 @@ function RecordPageContent() {
       // Upload directly to Supabase Storage (bypasses Vercel 4.5MB limit)
       // RLS policies ensure users can only upload to their own folder
       setUploadStatus('Uploading to storage...');
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('lecture-audio')
         .upload(fileName, audioBlob, {
           contentType: audioBlob.type,

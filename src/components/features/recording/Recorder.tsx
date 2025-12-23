@@ -27,6 +27,7 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
   const [currentTimestamp, setCurrentTimestamp] = useState(0);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [showAbortDialog, setShowAbortDialog] = useState(false);
+  const [noInputWarning, setNoInputWarning] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -35,13 +36,94 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
   const isAbortingRef = useRef<boolean>(false);
   const selectedMimeTypeRef = useRef<string>('audio/webm'); // Track selected mimeType
   const startTimeRef = useRef<number>(0); // Track recording start time for duration calculation
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const maxRmsRef = useRef<number>(0);
+  const lastUiUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach((track) => track.stop());
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (audioContextRef.current) {
+        // best-effort cleanup
+        audioContextRef.current.close().catch(() => {});
+      }
     };
   }, []);
+
+  const stopMetering = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    analyserRef.current = null;
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+  };
+
+  const startMetering = async (stream: MediaStream) => {
+    try {
+      // Reset metering state
+      maxRmsRef.current = 0;
+      lastUiUpdateRef.current = 0;
+      setNoInputWarning(false);
+
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      const audioContext = new AudioCtx();
+      audioContextRef.current = audioContext;
+
+      // Some browsers start suspended until user gesture; startRecording is user gesture, but resume anyway.
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const buffer = new Uint8Array(analyser.fftSize);
+      const threshold = 0.01; // RMS threshold for "has input" (tuned conservatively)
+
+      const tick = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteTimeDomainData(buffer);
+
+        // Compute RMS of normalized samples
+        let sumSq = 0;
+        for (let i = 0; i < buffer.length; i++) {
+          const v = (buffer[i] - 128) / 128; // [-1, 1]
+          sumSq += v * v;
+        }
+        const rms = Math.sqrt(sumSq / buffer.length);
+        if (rms > maxRmsRef.current) maxRmsRef.current = rms;
+
+        // UI warning after ~3s of near-silence, throttle UI updates
+        const now = Date.now();
+        if (startTimeRef.current && now - startTimeRef.current > 3000) {
+          if (now - lastUiUpdateRef.current > 500) {
+            lastUiUpdateRef.current = now;
+            setNoInputWarning(maxRmsRef.current < threshold);
+          }
+        }
+
+        rafRef.current = requestAnimationFrame(tick);
+      };
+
+      rafRef.current = requestAnimationFrame(tick);
+    } catch (e) {
+      console.warn('⚠️ Audio metering unavailable:', e);
+    }
+  };
 
   const getSupportedMimeType = (): string => {
     // Prioritize audio/mp4 first for better metadata compatibility with Soniox
@@ -66,12 +148,16 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
     try {
       // Reset abort flag at the start of a new recording
       isAbortingRef.current = false;
+      setNoInputWarning(false);
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 } 
+        // Keep constraints simple and portable; aggressive constraints can lead to near-silence on some devices.
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
       });
       
       streamRef.current = stream;
+      // Start a simple input meter so we can detect "recording silence" issues early.
+      startMetering(stream);
       const mimeType = getSupportedMimeType();
       selectedMimeTypeRef.current = mimeType; // Store the selected mimeType
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
@@ -105,14 +191,19 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
             // Fix the WebM duration metadata
             fixWebmDuration(buggyBlob, duration, (fixedBlob) => {
               console.log('✅ WebM duration fixed, using fixed blob');
+              console.log('📦 Final audio blob size:', fixedBlob.size, 'bytes');
+              console.log('🎚️ Max input RMS observed:', maxRmsRef.current);
               onRecordingComplete(fixedBlob, keypoints);
             });
           } else {
             // For non-WebM formats (like MP4), use the blob directly
             const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+            console.log('📦 Final audio blob size:', audioBlob.size, 'bytes');
+            console.log('🎚️ Max input RMS observed:', maxRmsRef.current);
             onRecordingComplete(audioBlob, keypoints);
           }
         }
+        stopMetering();
         // Stop stream tracks if they still exist
         if (streamRef.current) {
           streamRef.current.getTracks().forEach((track) => track.stop());
@@ -185,6 +276,7 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
+      stopMetering();
 
       // Clear audio chunks
       audioChunksRef.current = [];
@@ -284,6 +376,13 @@ export default function Recorder({ onRecordingComplete, isUploading = false }: R
       {permissionDenied && (
         <div className="mb-6 p-4 rounded-lg bg-[var(--error)]/10 border border-[var(--error)]/20 text-[var(--error)] text-sm text-center max-w-md">
           Microphone access denied. Please allow microphone access in your browser settings.
+        </div>
+      )}
+
+      {/* No-input warning */}
+      {isRecording && !isPaused && noInputWarning && (
+        <div className="mb-6 p-4 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/20 text-[var(--warning)] text-sm text-center max-w-md">
+          No microphone input detected. If you’re speaking but this stays on, check your selected mic and OS/browser permissions.
         </div>
       )}
 

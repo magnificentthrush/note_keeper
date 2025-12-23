@@ -191,8 +191,40 @@ export async function GET(request: NextRequest) {
         const transcriptData = await transcriptResponse.json();
         console.log('✅ Transcript Data received');
         console.log('📋 Transcript Data keys:', Object.keys(transcriptData));
+        console.log('📄 Transcript text value:', transcriptData.text ? `"${transcriptData.text.substring(0, 50)}..."` : 'empty/undefined');
+        console.log('🔢 Tokens array length:', transcriptData.tokens?.length || 0);
 
-        finalTranscript = transcriptData.text || '';
+        // Extract text from text field first, fallback to tokens if empty
+        if (transcriptData.text && transcriptData.text.trim().length > 0) {
+          finalTranscript = transcriptData.text;
+          console.log('✅ Using text field from transcript data');
+        } else if (transcriptData.tokens && Array.isArray(transcriptData.tokens) && transcriptData.tokens.length > 0) {
+          // Extract text from tokens array
+          console.log('⚠️ Text field is empty, extracting from tokens array...');
+          const textFromTokens = transcriptData.tokens
+            .map((token: { text?: string; word?: string }) => token.text || token.word || '')
+            .filter((text: string) => text.trim().length > 0)
+            .join(' ')
+            .trim();
+          
+          if (textFromTokens.length > 0) {
+            finalTranscript = textFromTokens;
+            console.log(`✅ Extracted ${textFromTokens.length} characters from tokens`);
+          } else {
+            console.error('❌ Tokens array exists but contains no text');
+          }
+        } else {
+          console.error('❌ Both text field and tokens array are empty or missing');
+        }
+
+        // Check if we still don't have a transcript
+        if (!finalTranscript || finalTranscript.trim().length === 0) {
+          // Soniox can return completed with an empty transcript when it detects no speech.
+          // Treat this as a valid "no speech" result so the pipeline can complete gracefully.
+          console.warn('⚠️ Transcript is empty. Treating as "no speech detected" and returning placeholder transcript.');
+          finalTranscript =
+            '[No speech detected in this recording. The audio may be silent, too quiet, or the microphone may not have captured input.]';
+        }
 
         if (transcriptData.translations && Array.isArray(transcriptData.translations) && transcriptData.translations.length > 0) {
           console.log(`Found ${transcriptData.translations.length} translations`);
@@ -208,14 +240,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Post-process: Translate any remaining non-English text to English using Gemini
-      if (finalTranscript) {
-        finalTranscript = await translateToEnglish(finalTranscript);
+      // Final validation before post-processing
+      if (!finalTranscript || finalTranscript.trim().length === 0) {
+        console.warn('⚠️ Final transcript still empty after extraction attempts. Using placeholder transcript.');
+        finalTranscript =
+          '[No speech detected in this recording. The audio may be silent, too quiet, or the microphone may not have captured input.]';
       }
+
+      // Post-process: Translate any remaining non-English text to English using Gemini
+      finalTranscript = await translateToEnglish(finalTranscript);
 
       return NextResponse.json({
         status: 'completed',
         transcript: finalTranscript,
+        is_empty_transcript: finalTranscript.startsWith('[No speech detected'),
       });
     }
 

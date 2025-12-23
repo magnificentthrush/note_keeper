@@ -177,15 +177,17 @@ function extractTitleFromNotes(notes: string): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const { lectureId, transcriptText } = await request.json();
+    const body = await request.json();
+    const { lectureId, transcriptText } = body;
 
     if (!lectureId) {
       return NextResponse.json({ error: 'Lecture ID is required' }, { status: 400 });
     }
 
-    if (!transcriptText || typeof transcriptText !== 'string') {
-      return NextResponse.json({ error: 'Transcript text is required' }, { status: 400 });
-    }
+    // Handle empty or missing transcript gracefully
+    const finalTranscript = (transcriptText && typeof transcriptText === 'string' && transcriptText.trim().length > 0) 
+      ? transcriptText 
+      : "[No speech detected in this recording. The audio may be silent or too short.]";
 
     const supabase = await createServiceClient();
 
@@ -205,7 +207,7 @@ export async function POST(request: NextRequest) {
     const transcriptResponse: TranscriptResponse = {
       id: (lecture as { soniox_job_id?: string }).soniox_job_id || lectureId,
       status: 'completed',
-      text: transcriptText,
+      text: finalTranscript,
       utterances: [], // Soniox tokens format is different, we'll use plain text for now
       audio_duration: 0,
     };
