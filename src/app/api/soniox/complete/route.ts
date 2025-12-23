@@ -61,6 +61,10 @@ STRICT RULES:
 - Use markdown formatting (headers for topics, bullet points for key points)
 - Organize content into clear hierarchical sections based on the transcript flow
 - If the transcript is unclear or audio quality was poor, note that briefly
+- If there are mathematical equations/formulas, represent them in LaTeX math:
+  - Inline math: $...$
+  - Display math (own line): $$...$$
+  - Do NOT spell equations out in English if you can express them as LaTeX.
 
 STRUCTURE:
 - Use ## for main topics/sections
@@ -348,6 +352,18 @@ export async function POST(request: NextRequest) {
 
     if (fetchError || !lecture) {
       return NextResponse.json({ error: 'Lecture not found' }, { status: 404 });
+    }
+
+    // Idempotency: If notes already exist (and lecture is already completed), do NOT regenerate/overwrite.
+    // This prevents accidental double-calls (e.g., polling overlap) from changing notes or clearing fact checks.
+    if ((lecture as { status?: string }).status === 'completed' && (lecture as { final_notes?: string | null }).final_notes) {
+      console.log('✅ Lecture already completed with notes. Skipping regeneration:', lectureId);
+      return NextResponse.json({
+        success: true,
+        lectureId,
+        title: lecture.title,
+        skipped: true,
+      });
     }
 
     // Create a TranscriptResponse structure for compatibility

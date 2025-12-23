@@ -40,10 +40,14 @@ export default function ProcessingStatus({ lectureId, sonioxJobId }: ProcessingS
   const [state, setState] = useState<ProcessingState>('processing');
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isFinalizingRef = useRef(false);
+  const didRefreshRef = useRef(false);
 
   // Poll for status using GET endpoint
   const checkStatus = useCallback(async () => {
     if (!sonioxJobId) return;
+    // Prevent overlapping calls from triggering duplicate /complete requests
+    if (isFinalizingRef.current) return;
 
     try {
       // Use GET with query params as per the new API
@@ -57,6 +61,10 @@ export default function ProcessingStatus({ lectureId, sonioxJobId }: ProcessingS
       const data = await response.json();
 
       if (data.status === 'completed') {
+        // Guard against multiple completed responses firing concurrently
+        if (isFinalizingRef.current) return;
+        isFinalizingRef.current = true;
+
         // Stop polling
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
@@ -82,13 +90,17 @@ export default function ProcessingStatus({ lectureId, sonioxJobId }: ProcessingS
         }
 
         // Refresh the page to show completed lecture
-        router.refresh();
+        if (!didRefreshRef.current) {
+          didRefreshRef.current = true;
+          router.refresh();
+        }
       } else if (data.status === 'error') {
         // Stop polling
         if (intervalRef.current) {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+        isFinalizingRef.current = true;
         setState('error');
         // Show detailed error message from Soniox
         const errorMsg = data.error || data.error_message || 'Transcription failed';
@@ -113,7 +125,11 @@ export default function ProcessingStatus({ lectureId, sonioxJobId }: ProcessingS
     checkStatus();
 
     // Set up polling every 2 seconds
-    intervalRef.current = setInterval(checkStatus, 2000);
+    intervalRef.current = setInterval(() => {
+      // If we are already finalizing, don't keep invoking checkStatus
+      if (isFinalizingRef.current) return;
+      checkStatus();
+    }, 2000);
 
     // Cleanup on unmount
     return () => {

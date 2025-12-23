@@ -62,11 +62,15 @@ export default async function LecturePage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
-      <Sidebar />
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
 
-      <main className="pl-64">
+      <main className="md:pl-64">
         <Header
           backHref="/dashboard"
+          // Sidebar already shows the brand on desktop; show brand only on mobile to avoid duplicate logo.
+          brandVisibility="mobile"
           actions={
             typedLecture.status === 'completed' && (
               <Badge
@@ -79,13 +83,13 @@ export default async function LecturePage({ params }: PageProps) {
         />
         {/* Page title - below header */}
         <div className="border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-          <div className="px-8 py-4">
+          <div className="px-4 md:px-8 py-4">
             <EditableTitle lectureId={id} initialTitle={typedLecture.title || 'Untitled Lecture'} />
             <p className="text-sm text-[var(--text-muted)] mt-1">{formatDate(typedLecture.created_at)}</p>
           </div>
         </div>
 
-        <div className="p-8 max-w-4xl mx-auto">
+        <div className="p-4 md:p-8 max-w-4xl mx-auto">
           {/* Processing - with auto-polling */}
           {typedLecture.status === 'processing' && (
             <ProcessingStatus

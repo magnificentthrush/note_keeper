@@ -50,6 +50,10 @@ STRICT RULES:
 - Use markdown formatting (headers for topics, bullet points for key points)
 - Organize content into clear hierarchical sections based on the transcript flow
 - If the transcript is unclear or audio quality was poor, note that briefly
+- If there are mathematical equations/formulas, represent them in LaTeX math:
+  - Inline math: $...$
+  - Display math (own line): $$...$$
+  - Do NOT spell equations out in English if you can express them as LaTeX.
 
 STRUCTURE:
 - Use ## for main topics/sections

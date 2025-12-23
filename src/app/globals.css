@@ -103,6 +103,15 @@ body {
   line-height: 1.8;
 }
 
+/* Compact variant for fact-check sections */
+.prose-notes-compact {
+  line-height: 1.6;
+}
+
+.prose-notes-compact p {
+  margin-bottom: 0.5rem;
+}
+
 .prose-notes h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -129,16 +138,26 @@ body {
 
 .prose-notes p {
   color: var(--text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.7;
+}
+
+.prose-notes p:last-child {
+  margin-bottom: 0;
 }
 
 .prose-notes ul, .prose-notes ol {
-  padding-left: 1.5rem;
-  margin-bottom: 1rem;
+  padding-left: 1.75rem;
+  margin-bottom: 1.25rem;
   color: var(--text-secondary);
 }
 
 .prose-notes li {
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+}
+
+.prose-notes li > p {
   margin-bottom: 0.5rem;
 }
 
@@ -174,6 +193,44 @@ body {
   border-radius: 8px;
   overflow-x: auto;
   margin: 1rem 0;
+}
+
+/* KaTeX math styling for notes */
+.prose-notes .katex {
+  font-size: 1.1em;
+  color: var(--text-primary);
+}
+
+.prose-notes .katex-display {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.prose-notes .katex-display > .katex {
+  display: block;
+  text-align: center;
+}
+
+/* Inline math styling */
+.prose-notes .katex-html {
+  color: var(--text-primary);
+}
+
+/* Ensure math equations don't break layout */
+.prose-notes .katex-display {
+  max-width: 100%;
+}
+
+.prose-notes-compact .katex {
+  font-size: 1em;
+}
+
+.prose-notes-compact .katex-display {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
 }
 
 /* User keypoint highlight */

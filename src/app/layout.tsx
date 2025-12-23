@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import FloatingFeedbackButton from "@/components/ui/FloatingFeedbackButton";
 import { Analytics } from "@vercel/analytics/react";
 
