@@ -3,3 +3,4 @@ ALTER TABLE lectures
 ADD COLUMN IF NOT EXISTS fact_checks JSONB;
 
 
+
