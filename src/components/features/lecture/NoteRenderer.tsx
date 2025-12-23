@@ -17,6 +17,11 @@ export default function NoteRenderer({ content }: NoteRendererProps) {
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
+          pre: ({ children, ...props }) => (
+            <pre className="overflow-x-auto" {...props}>
+              {children}
+            </pre>
+          ),
           p: ({ children, ...props }) => {
             const text = children?.toString?.() ?? '';
             const isUserNote = typeof text === 'string' && text.includes('🔖 USER NOTE');
@@ -35,20 +40,11 @@ export default function NoteRenderer({ content }: NoteRendererProps) {
               </p>
             );
           },
-          code: ({ inline, children, ...props }) => {
-            if (inline) {
-              return (
-                <code {...props}>
-                  {children}
-                </code>
-              );
-            }
-            return (
-              <pre className="overflow-x-auto">
-                <code {...props}>{children}</code>
-              </pre>
-            );
-          },
+          code: ({ children, ...props }) => (
+            <code {...props}>
+              {children}
+            </code>
+          ),
         }}
       >
         {content}
