@@ -3,6 +3,15 @@ export interface Keypoint {
   note: string;
 }
 
+export interface FactCheckItem {
+  claim: string;
+  correction: string;
+  rationale: string;
+  confidence: number; // 0..1
+  severity: 'low' | 'medium' | 'high';
+  source_quote?: string;
+}
+
 export interface Folder {
   id: string;
   user_id: string;
@@ -21,6 +30,7 @@ export interface Lecture {
   transcript_json: TranscriptResponse | null;
   user_keypoints: Keypoint[];
   final_notes: string | null;
+  fact_checks?: FactCheckItem[] | null;
   status: 'recording' | 'processing' | 'completed' | 'error';
   created_at: string;
   soniox_job_id?: string | null;

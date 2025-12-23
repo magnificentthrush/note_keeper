@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { AssemblyAI } from 'assemblyai';
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Keypoint, TranscriptResponse } from '@/lib/types';
+import { FactCheckItem, Keypoint, TranscriptResponse } from '@/lib/types';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -219,6 +219,144 @@ function extractTitleFromNotes(notes: string): string | null {
   return null;
 }
 
+function extractJsonArray(text: string): unknown[] | null {
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    // ignore
+  }
+
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start >= 0 && end > start) {
+    const slice = text.slice(start, end + 1);
+    try {
+      const parsed = JSON.parse(slice);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function sanitizeFactChecks(raw: unknown): FactCheckItem[] {
+  if (!Array.isArray(raw)) return [];
+
+  const items: FactCheckItem[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object') continue;
+    const obj = entry as Record<string, unknown>;
+
+    const claim = typeof obj.claim === 'string' ? obj.claim.trim() : '';
+    const correction = typeof obj.correction === 'string' ? obj.correction.trim() : '';
+    const rationale = typeof obj.rationale === 'string' ? obj.rationale.trim() : '';
+    const confidence =
+      typeof obj.confidence === 'number'
+        ? obj.confidence
+        : typeof obj.confidence === 'string'
+          ? Number(obj.confidence)
+          : NaN;
+    const severityRaw = typeof obj.severity === 'string' ? obj.severity.toLowerCase().trim() : '';
+    const severity: FactCheckItem['severity'] =
+      severityRaw === 'high' || severityRaw === 'medium' || severityRaw === 'low' ? severityRaw : 'low';
+    const source_quote = typeof obj.source_quote === 'string' ? obj.source_quote.trim() : undefined;
+
+    if (!claim || !correction || !rationale) continue;
+    if (!Number.isFinite(confidence) || confidence < 0.75) continue;
+
+    items.push({
+      claim,
+      correction,
+      rationale,
+      confidence: Math.max(0, Math.min(1, confidence)),
+      severity,
+      source_quote,
+    });
+  }
+
+  return items.slice(0, 10);
+}
+
+async function generateFactChecksWithGemini(params: { notes: string; transcriptText: string }): Promise<FactCheckItem[]> {
+  const { notes, transcriptText } = params;
+
+  if (!process.env.GOOGLE_GEMINI_API_KEY) return [];
+  if (!notes || notes.trim().length < 200) return [];
+
+  const transcriptTrimmed = (transcriptText || '').trim();
+  if (transcriptTrimmed.startsWith('[No speech detected')) return [];
+
+  const systemPrompt = `You are a careful academic fact-checker.
+
+Goal: Identify statements that are likely WRONG (factually incorrect) in the lecture content.
+
+STRICT RULES:
+- Be conservative: if you are not highly confident a statement is wrong, OUTPUT [].
+- Only flag items that are clearly incorrect according to well-established knowledge.
+- Do NOT nitpick opinions, teaching style, or ambiguous phrasing.
+- Only flag claims explicitly present in the provided notes/transcript excerpt.
+- Output MUST be a pure JSON array (no markdown, no prose).
+- Each item MUST include: claim, correction, rationale, confidence (0..1), severity (low|medium|high), source_quote.
+- confidence must be >= 0.75 only when you are highly confident.
+- Keep at most 10 items.`;
+
+  const transcriptExcerpt =
+    transcriptTrimmed.length > 12000 ? transcriptTrimmed.slice(0, 12000) + '\n...[truncated]...' : transcriptTrimmed;
+
+  const userPrompt = `Analyze the lecture notes + transcript excerpt and find ONLY the clearly wrong statements.
+If there are no clear factual errors, return [].
+
+Lecture notes:
+${notes}
+
+Transcript excerpt (optional supporting context):
+${transcriptExcerpt}
+
+Return JSON array of objects with keys:
+- claim: string
+- correction: string
+- rationale: string
+- confidence: number (0..1)
+- severity: "low"|"medium"|"high"
+- source_quote: string`;
+
+  const genAI = getGeminiClient();
+  const modelNames = [
+    process.env.GEMINI_MODEL,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro',
+  ].filter(Boolean) as string[];
+
+  let lastError: Error | null = null;
+  for (const modelName of modelNames) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: { temperature: 0.2 },
+      });
+      const result = await model.generateContent([
+        { text: systemPrompt },
+        { text: userPrompt },
+      ]);
+      const text = result.response.text();
+      const arr = extractJsonArray(text);
+      return sanitizeFactChecks(arr);
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+  }
+
+  console.warn('Fact-check generation failed; continuing without fact checks. Last error:', lastError?.message);
+  return [];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { lectureId } = await request.json();
@@ -371,9 +509,21 @@ export async function POST(request: NextRequest) {
 
       // Save notes and update status
       // Also auto-generate title from notes if user didn't provide one
-      const updateData: { final_notes: string; status: string; title?: string } = {
+      // Fact check pass (conservative: returns [] unless confident)
+      let factChecks: FactCheckItem[] = [];
+      try {
+        console.log('Running fact-check pass with Gemini...');
+        factChecks = await generateFactChecksWithGemini({ notes, transcriptText: transcriptData.text || '' });
+        console.log(`Fact-check items: ${factChecks.length}`);
+      } catch (e) {
+        console.warn('Fact-check pass failed; continuing without fact checks:', e);
+        factChecks = [];
+      }
+
+      const updateData: { final_notes: string; status: string; title?: string; fact_checks?: FactCheckItem[] } = {
         final_notes: notes,
         status: 'completed',
+        fact_checks: factChecks,
       };
 
       // Check if the lecture has a default/untitled title

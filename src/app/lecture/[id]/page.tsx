@@ -12,6 +12,7 @@ import { Lecture, Keypoint } from '@/lib/types';
 import RefreshButton from './RefreshButton';
 import EditableTitle from './EditableTitle';
 import ProcessingStatus from './ProcessingStatus';
+import FactCheckSection from '@/components/features/lecture/FactCheckSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -158,6 +159,11 @@ export default async function LecturePage({ params }: PageProps) {
                 notes={typedLecture.final_notes}
                 transcript={typedLecture.transcript_json}
               />
+
+              {/* Fact check section (only if there are items) */}
+              {Array.isArray(typedLecture.fact_checks) && typedLecture.fact_checks.length > 0 && (
+                <FactCheckSection items={typedLecture.fact_checks} />
+              )}
             </div>
           )}
 
