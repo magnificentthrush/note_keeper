@@ -30,6 +30,8 @@ export interface Lecture {
   transcript_json: TranscriptResponse | null;
   user_keypoints: Keypoint[];
   final_notes: string | null;
+  ai_notes?: string | null;
+  notes_edited?: boolean;
   fact_checks?: FactCheckItem[] | null;
   status: 'recording' | 'processing' | 'completed' | 'error';
   created_at: string;

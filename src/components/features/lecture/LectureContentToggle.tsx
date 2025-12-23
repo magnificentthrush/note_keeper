@@ -3,18 +3,21 @@
 import { useState } from 'react';
 import { FileText, ScrollText } from 'lucide-react';
 import Card from '@/components/ui/Card';
-import NoteRenderer from './NoteRenderer';
+import EditableNotes from './EditableNotes';
 import TranscriptRenderer from './TranscriptRenderer';
 import { TranscriptResponse } from '@/lib/types';
 
 interface LectureContentToggleProps {
+  lectureId: string;
   notes: string | null;
+  notesEdited?: boolean;
+  aiNotes?: string | null;
   transcript: TranscriptResponse | null;
 }
 
 type TabType = 'notes' | 'transcript';
 
-export default function LectureContentToggle({ notes, transcript }: LectureContentToggleProps) {
+export default function LectureContentToggle({ lectureId, notes, notesEdited = false, aiNotes = null, transcript }: LectureContentToggleProps) {
   // Default to notes, fallback to transcript if notes not available
   const defaultTab: TabType = notes ? 'notes' : (transcript ? 'transcript' : 'notes');
   const [activeTab, setActiveTab] = useState<TabType>(defaultTab);
@@ -72,7 +75,12 @@ export default function LectureContentToggle({ notes, transcript }: LectureConte
       <Card className="p-8">
         {/* AI Notes content */}
         {activeTab === 'notes' && hasNotes && (
-          <NoteRenderer content={notes} />
+          <EditableNotes
+            lectureId={lectureId}
+            notes={notes}
+            notesEdited={notesEdited}
+            aiNotes={aiNotes}
+          />
         )}
 
         {/* Transcription content */}

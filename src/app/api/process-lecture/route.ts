@@ -531,8 +531,17 @@ export async function POST(request: NextRequest) {
         factChecks = [];
       }
 
-      const updateData: { final_notes: string; status: string; title?: string; fact_checks?: FactCheckItem[] } = {
+      const updateData: {
+        final_notes: string;
+        ai_notes?: string;
+        notes_edited?: boolean;
+        status: string;
+        title?: string;
+        fact_checks?: FactCheckItem[];
+      } = {
         final_notes: notes,
+        ai_notes: notes,
+        notes_edited: false,
         status: 'completed',
         fact_checks: factChecks,
       };

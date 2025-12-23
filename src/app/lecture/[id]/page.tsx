@@ -160,7 +160,10 @@ export default async function LecturePage({ params }: PageProps) {
 
               {/* Notes and Transcript Toggle */}
               <LectureContentToggle
+                lectureId={id}
                 notes={typedLecture.final_notes}
+                notesEdited={typedLecture.notes_edited ?? false}
+                aiNotes={typedLecture.ai_notes ?? null}
                 transcript={typedLecture.transcript_json}
               />
 
