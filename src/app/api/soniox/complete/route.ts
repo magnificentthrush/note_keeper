@@ -65,6 +65,8 @@ STRICT RULES:
   - Inline math: $...$
   - Display math (own line): $$...$$
   - Do NOT spell equations out in English if you can express them as LaTeX.
+  - IMPORTANT: If the instructor *mentions or describes* an equation/formula (even in words), you MUST include the actual equation in LaTeX.
+    Example: “minus b plus minus root b squared minus 4ac over 2a” → $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
 
 STRUCTURE:
 - Use ## for main topics/sections
@@ -73,7 +75,11 @@ STRUCTURE:
 - Include specific details, examples, and explanations under each point
 - If user marked key points during recording, highlight them with: **🔖 USER NOTE: [note]**
 
-CRITICAL: Capture the full depth of the lecture content. Include all important details, examples, and explanations that the instructor provided.`;
+CRITICAL: Capture the full depth of the lecture content. Include all important details, examples, and explanations that the instructor provided.
+
+MANDATORY EQUATIONS SECTION:
+- At the END of the notes, add a section titled: "## Formulas & Equations (LaTeX)"
+- List EVERY equation/formula mentioned (or described in words) as LaTeX. If none, include the heading and write: "None mentioned."`;
 
   const userPrompt = `Create DETAILED, COMPREHENSIVE study notes from this lecture transcript. Capture all specific examples, technical terms, and explanations. Preserve the full depth of the content.
 
@@ -91,7 +97,8 @@ Create detailed notes that:
 - Use bullet points with full detail (not just summaries)
 - Include the user's marked key points at the relevant sections
 - Maintain the original flow and order of topics from the transcript
-- Preserve technical terms and specific details exactly as stated`;
+- Preserve technical terms and specific details exactly as stated
+- Ensure every mentioned/described formula is included as LaTeX and also appears in the final "## Formulas & Equations (LaTeX)" section`;
 
   const hasGemini = !!process.env.GOOGLE_GEMINI_API_KEY;
 

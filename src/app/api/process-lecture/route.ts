@@ -54,6 +54,8 @@ STRICT RULES:
   - Inline math: $...$
   - Display math (own line): $$...$$
   - Do NOT spell equations out in English if you can express them as LaTeX.
+  - IMPORTANT: If the instructor *mentions or describes* an equation/formula (even in words), you MUST include the actual equation in LaTeX.
+    Example: “minus b plus minus root b squared minus 4ac over 2a” → $$x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
 
 STRUCTURE:
 - Use ## for main topics/sections
@@ -61,7 +63,11 @@ STRUCTURE:
 - Keep bullet points brief (1-2 sentences max per point)
 - If user marked key points during recording, highlight them with: **🔖 USER NOTE: [note]**
 
-CRITICAL: Do not add any information, explanations, or context that was not explicitly stated by the instructor in the transcript. Only summarize and organize what was actually said.`;
+CRITICAL: Do not add any information, explanations, or context that was not explicitly stated by the instructor in the transcript. Only summarize and organize what was actually said.
+
+MANDATORY EQUATIONS SECTION:
+- At the END of the notes, add a section titled: "## Formulas & Equations (LaTeX)"
+- List EVERY equation/formula mentioned (or described in words) as LaTeX. If none, include the heading and write: "None mentioned."`;
 
   const userPrompt = `Create concise, structured study notes from this lecture transcript. Only include information that the instructor actually said - do not add explanations or expand on concepts.
 
@@ -78,7 +84,8 @@ Create structured notes that:
 - Organize content into clear topics/sections using headers
 - Use bullet points for key points (keep each point concise)
 - Include the user's marked key points at the relevant sections
-- Maintain the original flow and order of topics from the transcript`;
+- Maintain the original flow and order of topics from the transcript
+- Ensure every mentioned/described formula is included as LaTeX and also appears in the final "## Formulas & Equations (LaTeX)" section`;
 
   // Check which LLM provider to use (prefer Gemini if available, fallback to OpenAI)
   const hasGemini = !!process.env.GOOGLE_GEMINI_API_KEY;
